@@ -37,7 +37,10 @@ function Client() {
       socketInstance.onmessage = (event) => {
         const receivedMessage = JSON.parse(event.data);
         console.log('Received message:', receivedMessage);
-        setMessages((prevMessages) => [...prevMessages, receivedMessage]);
+        setMessages((prevMessages) => {
+          const newMessages = [...prevMessages, receivedMessage];
+          return removeDuplicateMessages(newMessages);
+        });
       };
 
       socketInstance.onerror = (error) => {
@@ -52,6 +55,21 @@ function Client() {
     }
   }, [nameConfirmed, clientName]);
 
+  const removeDuplicateMessages = (messages) => {
+    const uniqueMessages = [];
+    const messageSet = new Set();
+    
+    for (const message of messages) {
+      const messageString = JSON.stringify(message);
+      if (!messageSet.has(messageString)) {
+        messageSet.add(messageString);
+        uniqueMessages.push(message);
+      }
+    }
+    
+    return uniqueMessages;
+  };
+
   const sendMessage = () => {
     if (messageInput.trim() !== '' && socket) {
       const message = {
@@ -64,29 +82,12 @@ function Client() {
       // Enviar el mensaje a través de WebSocket
       socket.send(JSON.stringify(message));
 
-      // Guardar el mensaje en la base de datos
-      fetch('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_name: clientName,
-          message: message.text,
-          sender: 'Cliente',
-        }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.text();
-        })
-        .then((data) => console.log('Message saved:', data))
-        .catch((error) => console.error('Error saving message:', error));
-
       // Actualizar el estado local inmediatamente para reflejar el mensaje enviado
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prevMessages) => {
+        const newMessages = [...prevMessages, message];
+        return removeDuplicateMessages(newMessages);
+      });
+
       setMessageInput('');
     }
   };

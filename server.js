@@ -17,7 +17,6 @@ const webSocketServer = new WebSocketServer({
 });
 
 function originIsAllowed(origin) {
-  // Aquí puedes agregar lógica para verificar si el origen está permitido
   return true; // Permitir todas las conexiones
 }
 
@@ -30,7 +29,7 @@ webSocketServer.on('request', (request) => {
 
   const connection = request.accept(null, request.origin);
 
-  connection.on('message', (message) => {
+  connection.on('message', async (message) => {
     const msg = JSON.parse(message.utf8Data);
 
     if (msg.type === 'NEW_CLIENT') {
@@ -38,22 +37,31 @@ webSocketServer.on('request', (request) => {
         conn.sendUTF(JSON.stringify({ type: 'NEW_CLIENT', client: msg.client }));
       });
     } else {
-      // Guardar el mensaje en la base de datos
-      fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_name: msg.client,
-          message: msg.text,
-          sender: msg.role,
-        }),
-      });
+      try {
+        // Guardar el mensaje en la base de datos
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_name: msg.client,
+            message: msg.text,
+            sender: msg.role,
+          }),
+        });
 
-      webSocketServer.connections.forEach((conn) => {
-        conn.sendUTF(JSON.stringify(msg));
-      });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        // Solo enviar el mensaje a los demás clientes si se guardó correctamente en la base de datos
+        webSocketServer.connections.forEach((conn) => {
+          conn.sendUTF(JSON.stringify(msg));
+        });
+      } catch (error) {
+        console.error('Error saving message:', error);
+      }
     }
   });
 
