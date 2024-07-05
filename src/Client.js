@@ -1,32 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function Client() {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
-  const [socket, setSocket] = useState(null);
+  const socket = useRef(null); // Utilizar useRef para la instancia de WebSocket
   const [clientName, setClientName] = useState(''); // Estado para almacenar el nombre del cliente
   const [nameConfirmed, setNameConfirmed] = useState(false); // Estado para confirmar el nombre del cliente
 
   useEffect(() => {
     if (nameConfirmed) {
-      const fetchMessages = async () => {
-        try {
-          const response = await fetch(`https://phmsoft.tech/Ultimochatlojuro/get_messages.php?client_name=${clientName}`);
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          const data = await response.json();
-          console.log('Messages fetched:', data);
-          setMessages(data);
-        } catch (error) {
-          console.error('Error fetching messages:', error);
-        }
-      };
-
-      fetchMessages();
-
       const socketInstance = new WebSocket('ws://localhost:3001');
+      socket.current = socketInstance; // Asignar la instancia de WebSocket a la referencia
 
       socketInstance.onopen = () => {
         console.log('WebSocket connection established.');
@@ -47,8 +32,6 @@ function Client() {
         console.error('WebSocket error:', error);
       };
 
-      setSocket(socketInstance);
-
       return () => {
         socketInstance.close();
       };
@@ -57,21 +40,20 @@ function Client() {
 
   const removeDuplicateMessages = (messages) => {
     const uniqueMessages = [];
-    const messageSet = new Set();
-    
-    for (const message of messages) {
-      const messageString = JSON.stringify(message);
-      if (!messageSet.has(messageString)) {
-        messageSet.add(messageString);
+    const seenTimestamps = new Set();
+
+    messages.forEach(message => {
+      if (!seenTimestamps.has(message.timestamp)) {
         uniqueMessages.push(message);
+        seenTimestamps.add(message.timestamp);
       }
-    }
-    
+    });
+
     return uniqueMessages;
   };
 
   const sendMessage = () => {
-    if (messageInput.trim() !== '' && socket) {
+    if (messageInput.trim() !== '' && socket.current) {
       const message = {
         text: messageInput,
         timestamp: new Date().toISOString(),
@@ -80,7 +62,7 @@ function Client() {
       };
 
       // Enviar el mensaje a través de WebSocket
-      socket.send(JSON.stringify(message));
+      socket.current.send(JSON.stringify(message));
 
       // Actualizar el estado local inmediatamente para reflejar el mensaje enviado
       setMessages((prevMessages) => {
