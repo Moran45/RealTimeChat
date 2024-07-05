@@ -14,13 +14,17 @@ function Admin() {
     fetch('https://phmsoft.tech/Ultimochatlojuro/getAllClients.php')
       .then(response => response.json())
       .then(data => {
-        setClients(data);
+        const clientData = data.map(client => ({
+          name: client.client_name,
+          unreadCount: client.unread_count,
+        }));
+        setClients(clientData);
         // Inicializar el estado de mensajes y contadores
         const clientMessages = {};
         const clientCount = {};
-        data.forEach(client => {
-          clientMessages[client] = [];
-          clientCount[client] = 0;
+        clientData.forEach(client => {
+          clientMessages[client.name] = [];
+          clientCount[client.name] = 0;
         });
         setMessages(clientMessages);
         setMessageCount(clientCount);
@@ -38,15 +42,11 @@ function Admin() {
       const receivedMessage = JSON.parse(event.data);
       if (receivedMessage.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
-          if (!prevClients.includes(receivedMessage.client)) {
-            return [...prevClients, receivedMessage.client];
+          if (!prevClients.find(client => client.name === receivedMessage.client)) {
+            return [...prevClients, { name: receivedMessage.client, unreadCount: 0 }];
           }
           return prevClients;
         });
-        setMessageCount((prevCount) => ({
-          ...prevCount,
-          [receivedMessage.client]: 0,
-        }));
       } else {
         setMessages((prevMessages) => {
           const updatedMessages = { ...prevMessages };
@@ -54,7 +54,7 @@ function Admin() {
             updatedMessages[receivedMessage.client] = [];
           }
           updatedMessages[receivedMessage.client].push(receivedMessage);
-          return removeDuplicateMessages(updatedMessages);
+          return updatedMessages;
         });
 
         if (receivedMessage.role === 'Cliente') {
@@ -167,8 +167,8 @@ function Admin() {
           <h1>Selecciona un cliente para chatear</h1>
           {clients.map((client, index) => (
             <div key={index} className="client-item">
-              <span>{client} (Mensajes: {messageCount[client] || 0})</span>
-              <button onClick={() => handleClientSelection(client)}>Chatear</button>
+              <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
+              <button onClick={() => handleClientSelection(client.name)}>Chatear</button>
             </div>
           ))}
         </div>
