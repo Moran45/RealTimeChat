@@ -1,4 +1,3 @@
-// src/Client.js
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
@@ -11,6 +10,22 @@ function Client() {
 
   useEffect(() => {
     if (nameConfirmed) {
+      const fetchMessages = async () => {
+        try {
+          const response = await fetch(`https://phmsoft.tech/Ultimochatlojuro/get_messages.php?client_name=${clientName}`);
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          const data = await response.json();
+          console.log('Messages fetched:', data);
+          setMessages(data);
+        } catch (error) {
+          console.error('Error fetching messages:', error);
+        }
+      };
+
+      fetchMessages();
+
       const socketInstance = new WebSocket('ws://localhost:3001');
 
       socketInstance.onopen = () => {
@@ -21,7 +36,12 @@ function Client() {
 
       socketInstance.onmessage = (event) => {
         const receivedMessage = JSON.parse(event.data);
+        console.log('Received message:', receivedMessage);
         setMessages((prevMessages) => [...prevMessages, receivedMessage]);
+      };
+
+      socketInstance.onerror = (error) => {
+        console.error('WebSocket error:', error);
       };
 
       setSocket(socketInstance);
@@ -40,7 +60,33 @@ function Client() {
         role: 'Cliente', // Incluir el rol en el mensaje
         client: clientName, // Incluir el nombre del cliente
       };
+
+      // Enviar el mensaje a través de WebSocket
       socket.send(JSON.stringify(message));
+
+      // Guardar el mensaje en la base de datos
+      fetch('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_name: clientName,
+          message: message.text,
+          sender: 'Cliente',
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.text();
+        })
+        .then((data) => console.log('Message saved:', data))
+        .catch((error) => console.error('Error saving message:', error));
+
+      // Actualizar el estado local inmediatamente para reflejar el mensaje enviado
+      setMessages((prevMessages) => [...prevMessages, message]);
       setMessageInput('');
     }
   };
@@ -68,16 +114,14 @@ function Client() {
           <h1>Estás en Cliente</h1>
           <div className="chat-container">
             <div className="chat-messages">
-              {messages
-                .filter((message) => message.client === clientName)
-                .map((message, index) => (
-                  <div key={index} className="message">
-                    <span className="role-indicator">
-                      {message.role === 'Admin' ? 'A' : 'C'}:
-                    </span>
-                    {message.text}
-                  </div>
-                ))}
+              {messages.map((message, index) => (
+                <div key={index} className="message">
+                  <span className="role-indicator">
+                    {message.role === 'Admin' ? 'A' : 'C'}:
+                  </span>
+                  {message.text || message.message} {/* Asegurarse de mostrar el texto del mensaje */}
+                </div>
+              ))}
             </div>
             <div className="chat-input">
               <input
