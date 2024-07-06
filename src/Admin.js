@@ -12,6 +12,7 @@ function Admin() {
     // Obtener todos los clientes y sus mensajes desde el servidor al montar el componente
     const fetchAllClientsAndMessages = async () => {
       try {
+        
         const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/getAllClients.php');
         if (!response.ok) {
           throw new Error('Network response was not ok');
