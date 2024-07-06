@@ -7,6 +7,7 @@ function Client() {
   const socket = useRef(null); // Utilizar useRef para la instancia de WebSocket
   const [clientName, setClientName] = useState(''); // Estado para almacenar el nombre del cliente
   const [nameConfirmed, setNameConfirmed] = useState(false); // Estado para confirmar el nombre del cliente
+  const messagesEndRef = useRef(null); // Referencia para el final de los mensajes
 
   useEffect(() => {
     if (nameConfirmed) {
@@ -37,6 +38,13 @@ function Client() {
       };
     }
   }, [nameConfirmed, clientName]);
+
+  useEffect(() => {
+    // Desplazar automáticamente al final de los mensajes cuando se actualizan
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const removeDuplicateMessages = (messages) => {
     const uniqueMessages = [];
@@ -81,39 +89,48 @@ function Client() {
   };
 
   return (
-    <div className="App">
+    <div className="App container">
       {!nameConfirmed ? (
-        <div>
+        <div className="name-input-container text-center">
           <input
             type="text"
+            className="form-control mb-3"
             placeholder="Ingrese su nombre"
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
           />
-          <button onClick={handleClientNameSubmit}>Ingresar</button>
+          <button className="btn btn-primary" onClick={handleClientNameSubmit}>
+            Ingresar
+          </button>
         </div>
       ) : (
-        <div>
-          <h1>Estás en Cliente</h1>
+        <div className="chat-window">
+          <div className="chat-header p-3">
+            <h2>Chat de Soporte</h2>
+          </div>
           <div className="chat-container">
-            <div className="chat-messages">
+            <div className="chat-messages p-3">
               {messages.map((message, index) => (
-                <div key={index} className="message">
-                  <span className="role-indicator">
-                    {message.role === 'Admin' ? 'A' : 'C'}:
-                  </span>
-                  {message.text || message.message} {/* Asegurarse de mostrar el texto del mensaje */}
+                <div key={index} className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'} p-2 mb-2 rounded`}>
+                  <div className="message-content">
+                    <span className="message-author">
+                      {message.role === 'Admin' ? '' : clientName}
+                    </span>
+                    <span className="message-text">{message.text || message.message}</span>
+                  </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} /> {/* Referencia para el final de los mensajes */}
             </div>
-            <div className="chat-input">
+            <div className="chat-input p-3 d-flex align-items-center">
               <input
                 type="text"
-                placeholder="Type your message..."
+                className="form-control me-2"
+                placeholder="Escribe tu mensaje..."
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
               />
-              <button onClick={sendMessage}>Send</button>
+              <button className="btn btn-success" onClick={sendMessage}>Enviar</button>
             </div>
           </div>
         </div>

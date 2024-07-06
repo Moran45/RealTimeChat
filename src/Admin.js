@@ -7,12 +7,13 @@ function Admin() {
   const socket = useRef(null); // Utilizar useRef para la instancia de WebSocket
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
+  const [isFinalized, setIsFinalized] = useState(false);
+  const messagesEndRef = useRef(null); // Referencia para el final de los mensajes
 
   useEffect(() => {
     // Obtener todos los clientes y sus mensajes desde el servidor al montar el componente
     const fetchAllClientsAndMessages = async () => {
       try {
-        
         const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/getAllClients.php');
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -93,6 +94,13 @@ function Admin() {
     };
   }, []);
 
+  useEffect(() => {
+    // Desplazar automáticamente al final de los mensajes cuando se actualizan
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
   const fetchClientMessages = async (client) => {
     try {
       const response = await fetch(`https://phmsoft.tech/Ultimochatlojuro/get_messages.php?client_name=${client}`);
@@ -159,8 +167,61 @@ function Admin() {
     }
   };
 
+  const finalizeReport = () => {
+    if (socket.current && selectedClient) {
+      const message = {
+        text: 'El reporte ha sido finalizado.',
+        timestamp: new Date().toISOString(),
+        role: 'Admin',
+        client: selectedClient,
+        type: 'finalize'
+      };
+
+      // Enviar el mensaje a través de WebSocket
+      socket.current.send(JSON.stringify(message));
+
+      // Guardar el mensaje en la base de datos
+      fetch('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_name: selectedClient,
+          message: message.text,
+          sender: 'Admin',
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.text();
+        })
+        .then((data) => console.log('Finalization message saved:', data))
+        .catch((error) => console.error('Error saving finalization message:', error));
+
+      // Actualizar el estado local inmediatamente para reflejar el mensaje enviado
+      setMessages((prevMessages) => {
+        const updatedMessages = { ...prevMessages };
+        if (!updatedMessages[selectedClient]) {
+          updatedMessages[selectedClient] = [];
+        }
+        // Evitar agregar mensajes duplicados
+        if (!updatedMessages[selectedClient].find(msg => msg.timestamp === message.timestamp && msg.text === message.text)) {
+          updatedMessages[selectedClient].push(message);
+        }
+        return updatedMessages;
+      });
+
+      // Desactivar los botones
+      setIsFinalized(true);
+    }
+  };
+
   const handleClientSelection = (client) => {
     setSelectedClient(client);
+    setIsFinalized(false);
     fetchClientMessages(client); // Obtener los mensajes del cliente seleccionado
 
     // Marcar los mensajes del cliente como leídos en la base de datos
@@ -195,46 +256,56 @@ function Admin() {
   const readClients = clients.filter(client => client.unreadCount === 0);
 
   return (
-    <div className="App">
+    <div className="admin-app container-fluid">
       {!selectedClient ? (
-        <div>
-          <h1>Selecciona un cliente para chatear</h1>
-          {unreadClients.map((client, index) => (
-            <div key={index} className="client-item">
-              <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
-              <button onClick={() => handleClientSelection(client.name)}>Chatear</button>
-            </div>
-          ))}
-          <h2>Conversaciones leídas</h2>
-          {readClients.map((client, index) => (
-            <div key={index} className="client-item">
-              <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
-              <button onClick={() => handleClientSelection(client.name)}>Chatear</button>
-            </div>
-          ))}
+        <div className="admin-client-selection">
+          <h1 className="text-center my-4">Selecciona un cliente para chatear</h1>
+          <div className="admin-client-list">
+            <h2>Conversaciones no leídas</h2>
+            {unreadClients.map((client, index) => (
+              <div key={index} className="admin-client-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
+                <button className="btn btn-primary" onClick={() => handleClientSelection(client.name)}>Chatear</button>
+              </div>
+            ))}
+            <h2>Conversaciones leídas</h2>
+            {readClients.map((client, index) => (
+              <div key={index} className="admin-client-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                <span>{client.name}</span>
+                <button className="btn btn-primary" onClick={() => handleClientSelection(client.name)}>Chatear</button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
-        <div>
-          <h1>Chat con {selectedClient}</h1>
-          <div className="chat-container">
-            <div className="chat-messages">
+        <div className="admin-chat-window">
+          <h1 className="text-center my-4">Chat con {selectedClient}</h1>
+          <div className="admin-chat-container">
+            <div className="admin-chat-messages p-3">
               {messages[selectedClient]?.map((message, index) => (
-                <div key={index} className="message">
+                <div
+                  key={index}
+                  className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'} p-2 mb-2 rounded ${message.type === 'finalize' ? 'finalized-message' : ''}`}
+                >
                   <span className="role-indicator">
                     {message.role === 'Admin' ? 'A' : 'C'}:
                   </span>
                   {message.text || message.message} {/* Mostrar texto o mensaje */}
                 </div>
               ))}
+              <div ref={messagesEndRef} /> {/* Referencia para el final de los mensajes */}
             </div>
-            <div className="chat-input">
+            <div className="admin-chat-input d-flex align-items-center p-3">
               <input
                 type="text"
-                placeholder="Type your message..."
+                className="form-control me-2"
+                placeholder="Escribe tu mensaje..."
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
+                disabled={isFinalized}
               />
-              <button onClick={sendMessage}>Send</button>
+              <button className="btn btn-success me-2" onClick={sendMessage} disabled={isFinalized}>Enviar</button>
+              <button className="btn btn-danger" onClick={finalizeReport} disabled={isFinalized}>Finalizar Reporte</button>
             </div>
           </div>
         </div>
