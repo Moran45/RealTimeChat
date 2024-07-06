@@ -7,29 +7,40 @@ function Admin() {
   const socket = useRef(null); // Utilizar useRef para la instancia de WebSocket
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
-  const [messageCount, setMessageCount] = useState({}); // Estado para contar los mensajes enviados por cada cliente
 
   useEffect(() => {
-    // Obtener todos los clientes desde el servidor al montar el componente
-    fetch('https://phmsoft.tech/Ultimochatlojuro/getAllClients.php')
-      .then(response => response.json())
-      .then(data => {
+    // Obtener todos los clientes y sus mensajes desde el servidor al montar el componente
+    const fetchAllClientsAndMessages = async () => {
+      try {
+        const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/getAllClients.php');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+
         const clientData = data.map(client => ({
           name: client.client_name,
-          unreadCount: client.unread_count,
+          unreadCount: parseInt(client.unread_count, 10),
         }));
-        setClients(clientData);
-        // Inicializar el estado de mensajes y contadores
+
         const clientMessages = {};
-        const clientCount = {};
-        clientData.forEach(client => {
-          clientMessages[client.name] = [];
-          clientCount[client.name] = 0;
-        });
+        for (const client of clientData) {
+          const messagesResponse = await fetch(`https://phmsoft.tech/Ultimochatlojuro/get_messages.php?client_name=${client.name}`);
+          if (!messagesResponse.ok) {
+            throw new Error('Network response was not ok');
+          }
+          const messagesData = await messagesResponse.json();
+          clientMessages[client.name] = messagesData;
+        }
+
+        setClients(clientData);
         setMessages(clientMessages);
-        setMessageCount(clientCount);
-      })
-      .catch(error => console.error('Error fetching clients:', error));
+      } catch (error) {
+        console.error('Error fetching clients and messages:', error);
+      }
+    };
+
+    fetchAllClientsAndMessages();
 
     const socketInstance = new WebSocket('ws://localhost:3001');
     socket.current = socketInstance; // Asignar la instancia de WebSocket a la referencia
@@ -53,16 +64,21 @@ function Admin() {
           if (!updatedMessages[receivedMessage.client]) {
             updatedMessages[receivedMessage.client] = [];
           }
-          updatedMessages[receivedMessage.client].push(receivedMessage);
+          // Evitar agregar mensajes duplicados
+          if (!updatedMessages[receivedMessage.client].find(msg => msg.timestamp === receivedMessage.timestamp && msg.text === receivedMessage.text)) {
+            updatedMessages[receivedMessage.client].push(receivedMessage);
+          }
           return updatedMessages;
         });
 
         if (receivedMessage.role === 'Cliente') {
-          setMessageCount((prevCount) => ({
-            ...prevCount,
-            [receivedMessage.client]:
-              (prevCount[receivedMessage.client] || 0) + 1,
-          }));
+          setClients((prevClients) =>
+            prevClients.map((client) =>
+              client.name === receivedMessage.client
+                ? { ...client, unreadCount: client.unreadCount + 1 }
+                : client
+            )
+          );
         }
       }
     };
@@ -83,7 +99,6 @@ function Admin() {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      console.log('Fetched client messages:', data); // Para verificar que los datos se están recuperando
       setMessages(prevMessages => ({
         ...prevMessages,
         [client]: data
@@ -91,21 +106,6 @@ function Admin() {
     } catch (error) {
       console.error('Error fetching client messages:', error);
     }
-  };
-
-  const removeDuplicateMessages = (messages) => {
-    const uniqueMessages = {};
-    for (const client in messages) {
-      const seenTimestamps = new Set();
-      uniqueMessages[client] = messages[client].filter(message => {
-        if (!seenTimestamps.has(message.timestamp)) {
-          seenTimestamps.add(message.timestamp);
-          return true;
-        }
-        return false;
-      });
-    }
-    return uniqueMessages;
   };
 
   const sendMessage = () => {
@@ -147,8 +147,11 @@ function Admin() {
         if (!updatedMessages[selectedClient]) {
           updatedMessages[selectedClient] = [];
         }
-        updatedMessages[selectedClient].push(message);
-        return removeDuplicateMessages(updatedMessages);
+        // Evitar agregar mensajes duplicados
+        if (!updatedMessages[selectedClient].find(msg => msg.timestamp === message.timestamp && msg.text === message.text)) {
+          updatedMessages[selectedClient].push(message);
+        }
+        return updatedMessages;
       });
 
       setMessageInput('');
@@ -158,14 +161,51 @@ function Admin() {
   const handleClientSelection = (client) => {
     setSelectedClient(client);
     fetchClientMessages(client); // Obtener los mensajes del cliente seleccionado
+
+    // Marcar los mensajes del cliente como leídos en la base de datos
+    fetch('https://phmsoft.tech/Ultimochatlojuro/mark_messages_read.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_name: client,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.text();
+      })
+      .then((data) => {
+        console.log('Messages marked as read:', data);
+        // Actualizar el recuento de mensajes sin leer en el estado
+        setClients((prevClients) =>
+          prevClients.map((c) =>
+            c.name === client ? { ...c, unreadCount: 0 } : c
+          )
+        );
+      })
+      .catch((error) => console.error('Error marking messages as read:', error));
   };
+
+  const unreadClients = clients.filter(client => client.unreadCount > 0);
+  const readClients = clients.filter(client => client.unreadCount === 0);
 
   return (
     <div className="App">
       {!selectedClient ? (
         <div>
           <h1>Selecciona un cliente para chatear</h1>
-          {clients.map((client, index) => (
+          {unreadClients.map((client, index) => (
+            <div key={index} className="client-item">
+              <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
+              <button onClick={() => handleClientSelection(client.name)}>Chatear</button>
+            </div>
+          ))}
+          <h2>Conversaciones leídas</h2>
+          {readClients.map((client, index) => (
             <div key={index} className="client-item">
               <span>{client.name} (Mensajes sin leer: {client.unreadCount})</span>
               <button onClick={() => handleClientSelection(client.name)}>Chatear</button>
