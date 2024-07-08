@@ -490,3 +490,12 @@ body {
 .bi {
   font-size: 1.5rem;
 }
+.guide-messages {
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-messages .btn {
+  margin-bottom: 10px;
+}
+

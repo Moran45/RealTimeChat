@@ -7,6 +7,7 @@ function Client() {
   const socket = useRef(null); // Utilizar useRef para la instancia de WebSocket
   const [clientName, setClientName] = useState(''); // Estado para almacenar el nombre del cliente
   const [nameConfirmed, setNameConfirmed] = useState(false); // Estado para confirmar el nombre del cliente
+  const [showGuideMessages, setShowGuideMessages] = useState(true); // Estado para controlar la visibilidad de los mensajes guía
   const messagesEndRef = useRef(null); // Referencia para el final de los mensajes
 
   useEffect(() => {
@@ -60,10 +61,10 @@ function Client() {
     return uniqueMessages;
   };
 
-  const sendMessage = () => {
-    if (messageInput.trim() !== '' && socket.current) {
+  const sendMessage = (messageText) => {
+    if (messageText.trim() !== '' && socket.current) {
       const message = {
-        text: messageInput,
+        text: messageText,
         timestamp: new Date().toISOString(),
         role: 'Cliente', // Incluir el rol en el mensaje
         client: clientName, // Incluir el nombre del cliente
@@ -79,6 +80,7 @@ function Client() {
       });
 
       setMessageInput('');
+      setShowGuideMessages(false); // Ocultar los mensajes guía después de enviar un mensaje
     }
   };
 
@@ -109,6 +111,14 @@ function Client() {
             <h2>Chat de Soporte</h2>
           </div>
           <div className="chat-container">
+            {showGuideMessages && (
+              <div className="guide-messages p-3">
+                <button className="btn btn-outline-primary mb-2" onClick={() => sendMessage('¿Tienes problemas con tu cuenta?')}>¿Tienes problemas con tu cuenta?</button>
+                <button className="btn btn-outline-primary mb-2" onClick={() => sendMessage('¿Problemas con el sitio web?')}>¿Problemas con el sitio web?</button>
+                <button className="btn btn-outline-primary mb-2" onClick={() => sendMessage('¿Problemas de pago?')}>¿Problemas de pago?</button>
+                <button className="btn btn-outline-primary mb-2" onClick={() => sendMessage('¿Otro tipo de problema?')}>¿Otro tipo de problema?</button>
+              </div>
+            )}
             <div className="chat-messages p-3">
               {messages.map((message, index) => (
                 <div key={index} className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'} p-2 mb-2 rounded`}>
@@ -130,7 +140,7 @@ function Client() {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
               />
-              <button className="btn btn-success" onClick={sendMessage}>Enviar</button>
+              <button className="btn btn-success" onClick={() => sendMessage(messageInput)}>Enviar</button>
             </div>
           </div>
         </div>
