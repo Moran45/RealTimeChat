@@ -8,6 +8,7 @@ function Admin() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [isFinalized, setIsFinalized] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const messagesEndRef = useRef(null); // Referencia para el final de los mensajes
 
   useEffect(() => {
@@ -216,6 +217,7 @@ function Admin() {
 
       // Desactivar los botones
       setIsFinalized(true);
+      setShowModal(false);
     }
   };
 
@@ -305,11 +307,31 @@ function Admin() {
                 disabled={isFinalized}
               />
               <button className="btn btn-success me-2" onClick={sendMessage} disabled={isFinalized}>Enviar</button>
-              <button className="btn btn-danger" onClick={finalizeReport} disabled={isFinalized}>Finalizar Reporte</button>
+              <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isFinalized}>Finalizar Reporte</button>
             </div>
           </div>
         </div>
       )}
+
+      <div className={`modal ${showModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
+        <div className="modal-dialog" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Confirmar Finalización</h5>
+              <button type="button" className="close" onClick={() => setShowModal(false)} aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>¿Estás seguro de que deseas finalizar este reporte?</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+              <button type="button" className="btn btn-danger" onClick={finalizeReport}>Finalizar Reporte</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
