@@ -1,3 +1,4 @@
+/*
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
@@ -290,10 +291,10 @@ function Admin() {
                   <span className="role-indicator">
                     {message.role === 'Admin' ? 'A' : 'C'}:
                   </span>
-                  {message.text || message.message} {/* Mostrar texto o mensaje */}
+                  {message.text || message.message} {/* Mostrar texto o mensaje }
                 </div>
               ))}
-              <div ref={messagesEndRef} /> {/* Referencia para el final de los mensajes */}
+              <div ref={messagesEndRef} /> {/* Referencia para el final de los mensajes }
             </div>
             <div className="admin-chat-input d-flex align-items-center p-3">
               <input
@@ -310,6 +311,128 @@ function Admin() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export default Admin; */
+import React, { useEffect, useState, useRef } from 'react';
+import { useWebSocket } from '../WebSocketContext';
+
+function Admin() {
+  const [chats, setChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messageInput, setMessageInput] = useState('');
+  const ws = useWebSocket();
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (!ws) return;
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'CHATS') {
+        setChats(msg.chats);
+      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
+        setSelectedChat((prev) => ({ ...prev, messages: msg.messages }));
+      } else if (msg.type === 'MESSAGE' && selectedChat && msg.message.chat_id === selectedChat.chat_id) {
+        setSelectedChat((prev) => ({ ...prev, messages: [...prev.messages, msg.message] }));
+      }
+    };
+
+    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+
+    return () => {
+      if (ws) {
+        ws.onmessage = null; // Cleanup listener
+      }
+    };
+  }, [ws, selectedChat]);
+
+  const handleSelectChat = (chat) => {
+    setSelectedChat(chat);
+    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
+  };
+
+  const handleSendMessage = () => {
+    if (!ws || !selectedChat) {
+      alert('No chat selected or WebSocket connection not established.');
+      return;
+    }
+
+    ws.send(JSON.stringify({
+      type: 'MESSAGE',
+      chat_id: selectedChat.chat_id,
+      text: messageInput,
+      owner_id: localStorage.getItem('user_id'), // Assume admin user_id is stored in localStorage
+    }));
+
+    setMessageInput('');
+  };
+  const handleRedirectChat = (chatId, newAreaId) => {
+    if (!ws) {
+      alert('WebSocket connection not established.');
+      return;
+    }
+
+    ws.send(JSON.stringify({
+      type: 'REDIRECT_CHAT',
+      chat_id: chatId,
+      new_area_id: newAreaId,
+    }));
+  };
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedChat?.messages]);
+
+  return (
+    <div className="admin-app container-fluid">
+      <div className="admin-chat-container row">
+        <div className="admin-chat-list col-md-4">
+          <h2>Chats</h2>
+          {chats.map((chat, index) => (
+            <div key={index} onClick={() => handleSelectChat(chat)} className="chat-item">
+              <div>{chat.user_name}</div>
+              <button onClick={(e) => {
+                e.stopPropagation();
+                handleRedirectChat(chat.chat_id, 2);
+              }}>Redirigir a área 2</button>
+            </div>
+          ))}
+        </div>
+        <div className="admin-chat-window col-md-8">
+          {selectedChat ? (
+            <>
+              <h3>Chat with {selectedChat.user_name}</h3>
+              <div className="chat-messages">
+                {selectedChat.messages ? (
+                  selectedChat.messages.map((message, index) => (
+                    <div key={index} className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'}`}>
+                      <strong>{message.role}:</strong> {message.text}
+                    </div>
+                  ))
+                ) : (
+                  <p>Loading messages...</p>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="chat-input">
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  placeholder="Escribe tu mensaje..."
+                />
+                <button onClick={handleSendMessage}>Enviar</button>
+              </div>
+            </>
+          ) : (
+            <p>Select a chat to start messaging.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
