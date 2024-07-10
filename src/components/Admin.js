@@ -323,24 +323,52 @@ function Admin() {
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messageInput, setMessageInput] = useState('');
+  const [messages, setMessages] = useState([]);
   const ws = useWebSocket();
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (!ws) return;
 
+    ws.onopen = () => {
+      console.log('WebSocket connection established.');
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
+      console.log("Received message from server:", msg);
+
       if (msg.type === 'CHATS') {
+        console.log('Received CHATS:', msg.chats);
         setChats(msg.chats);
-      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
-        setSelectedChat((prev) => ({ ...prev, messages: msg.messages }));
+      } else if (msg.type === 'CHAT_MESSAGES') {
+        console.log('Received CHAT_MESSAGES:', msg.messages);
+        setSelectedChat((prevChat) => ({
+          ...prevChat,
+          messages: msg.messages,
+        }));
+        setMessages(msg.messages); // Actualiza los mensajes recibidos
       } else if (msg.type === 'MESSAGE' && selectedChat && msg.message.chat_id === selectedChat.chat_id) {
-        setSelectedChat((prev) => ({ ...prev, messages: [...prev.messages, msg.message] }));
+        console.log('Received MESSAGE:', msg.message);
+        setMessages((prevMessages) => [...prevMessages, msg.message]);
+        setSelectedChat((prevChat) => ({
+          ...prevChat,
+          messages: [...prevChat.messages, msg.message],
+        }));
       }
     };
 
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed.');
+    };
+
+    ws.send(JSON.stringify({
+      type: 'GET_CHATS',
+    }));
 
     return () => {
       if (ws) {
@@ -349,26 +377,39 @@ function Admin() {
     };
   }, [ws, selectedChat]);
 
-  const handleSelectChat = (chat) => {
-    setSelectedChat(chat);
-    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
+  const handleChatClick = (chatId) => {
+    if (!ws) {
+      alert('WebSocket connection not established.');
+      return;
+    }
+
+    const selected = chats.find(chat => chat.chat_id === chatId);
+    setSelectedChat(selected);
+
+    ws.send(JSON.stringify({
+      type: 'GET_CHAT_MESSAGES',
+      chat_id: chatId,
+    }));
   };
 
   const handleSendMessage = () => {
     if (!ws || !selectedChat) {
-      alert('No chat selected or WebSocket connection not established.');
+      alert('WebSocket connection not established or chat not selected.');
       return;
     }
 
-    ws.send(JSON.stringify({
+    const message = {
       type: 'MESSAGE',
       chat_id: selectedChat.chat_id,
       text: messageInput,
-      owner_id: localStorage.getItem('user_id'), // Assume admin user_id is stored in localStorage
-    }));
+      owner_id: localStorage.getItem('user_id'),
+      role: 'Admin'
+    };
 
+    ws.send(JSON.stringify(message));
     setMessageInput('');
   };
+
   const handleRedirectChat = (chatId, newAreaId) => {
     if (!ws) {
       alert('WebSocket connection not established.');
@@ -381,11 +422,12 @@ function Admin() {
       new_area_id: newAreaId,
     }));
   };
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [selectedChat?.messages]);
+  }, [messages]);
 
   return (
     <div className="admin-app container-fluid">
@@ -393,7 +435,7 @@ function Admin() {
         <div className="admin-chat-list col-md-4">
           <h2>Chats</h2>
           {chats.map((chat, index) => (
-            <div key={index} onClick={() => handleSelectChat(chat)} className="chat-item">
+            <div key={index} onClick={() => handleChatClick(chat.chat_id)} className="chat-item">
               <div>{chat.user_name}</div>
               <button onClick={(e) => {
                 e.stopPropagation();
@@ -407,15 +449,11 @@ function Admin() {
             <>
               <h3>Chat with {selectedChat.user_name}</h3>
               <div className="chat-messages">
-                {selectedChat.messages ? (
-                  selectedChat.messages.map((message, index) => (
-                    <div key={index} className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'}`}>
-                      <strong>{message.role}:</strong> {message.text}
-                    </div>
-                  ))
-                ) : (
-                  <p>Loading messages...</p>
-                )}
+                {messages.map((message, index) => (
+                  <div key={index} className={`message ${message.role === 'Admin' ? 'admin-message' : 'client-message'}`}>
+                    <strong>{message.role}:</strong> {message.text}
+                  </div>
+                ))}
                 <div ref={messagesEndRef} />
               </div>
               <div className="chat-input">
@@ -438,3 +476,6 @@ function Admin() {
 }
 
 export default Admin;
+
+
+

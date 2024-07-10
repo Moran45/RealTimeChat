@@ -81,7 +81,12 @@ webSocketServer.on('request', (request) => {
 
       // Validar y asignar area_id
       const validAreas = ['1', '2', '3'];
-      connection.area_id = validAreas.includes(msg.area_id) ? msg.area_id : '1'; // Área por defecto es '1'
+      console.log("MSG.AREA_ID",msg.area_id);
+      if (validAreas.includes(msg.area_id.toString())) {
+        connection.area_id = msg.area_id;
+      } else {
+        connection.area_id = '1'; // Área por defecto es '1'
+      }
 
       // Crear el chat si no existe
       if (!connection.chat_id) {
@@ -123,6 +128,8 @@ webSocketServer.on('request', (request) => {
           return;
         }
 
+        console.log(`chat_id { area_id: ${connection.area_id} }`); // Añadido aquí para debugging
+
         const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
           method: 'POST',
           headers: {
@@ -132,6 +139,7 @@ webSocketServer.on('request', (request) => {
             chat_id: chat_id,
             text: msg.text,
             owner_id: connection.user_id || msg.owner_id, // Usar el user_id de la conexión o de msg
+            role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'), // Asignar el rol apropiado
           }),
         });
 
@@ -140,17 +148,8 @@ webSocketServer.on('request', (request) => {
         }
 
         const savedMessage = await response.json();
-        const areaResponse = await fetchWrapper(`https://phmsoft.tech/Ultimochatlojuro/get_chat_area.php?chat_id=${chat_id}`);
-        if (!areaResponse.ok) {
-          throw new Error('Network response was not ok');
-        }
-
-        const areaData = await areaResponse.json();
-        console.log("chat_id", areaData);
-        const areaId = areaData.area_id;
-
         webSocketServer.connections.forEach((conn) => {
-          if (conn.area_id == areaId || conn.client_id == msg.client_id) {
+          if (conn.chat_id === chat_id) {
             conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
           }
         });

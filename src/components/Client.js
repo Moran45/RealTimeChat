@@ -161,6 +161,7 @@ function Client() {
       if (msg.type === 'WELCOME') {
         setMessages([{ text: msg.message, role: 'system', timestamp: new Date().toISOString() }]);
       } else if (msg.type === 'MESSAGE') {
+        console.log("chat_id: ",msg.type);
         setMessages((prev) => [...prev, msg.message]);
       }
     };
