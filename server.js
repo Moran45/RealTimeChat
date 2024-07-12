@@ -1,4 +1,5 @@
 const WebSocketServer = require('websocket').server;
+const { Console } = require('console');
 const http = require('http');
 
 async function fetchWrapper(url, options) {
@@ -149,8 +150,13 @@ webSocketServer.on('request', (request) => {
 
         const savedMessage = await response.json();
         webSocketServer.connections.forEach((conn) => {
+        console.log("connection ids: ",conn.chat_id, chat_id);
           if (conn.chat_id === chat_id) {
+            console.log("SavedMEssage: ",savedMessage)
+            console.log("SavedMEssageRole: ",conn.role)
             conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
+          } else {
+            console.log("distintos chats bro");
           }
         });
       } catch (error) {
@@ -201,6 +207,7 @@ webSocketServer.on('request', (request) => {
         }
 
         const messages = await response.json();
+        connection.chat_id = msg.chat_id; // Set chat_id for the admin connection
         connection.sendUTF(JSON.stringify({ type: 'CHAT_MESSAGES', chat_id: msg.chat_id, messages: messages }));
       } catch (error) {
         console.error('Error fetching chat messages:', error);
@@ -216,85 +223,3 @@ webSocketServer.on('request', (request) => {
 server.listen(3001, () => {
   console.log('WebSocket server is listening on port 3001');
 });
-
-
-
-
-/***** OLD CODE *****/
-/*
-const WebSocketServer = require('websocket').server;
-const http = require('http');
-
-async function fetchWrapper(url, options) {
-  const fetch = (await import('node-fetch')).default;
-  return fetch(url, options);
-}
-
-const server = http.createServer((request, response) => {
-  response.writeHead(200, { 'Content-Type': 'text/plain' });
-  response.end('WebSocket server is running\n');
-});
-
-const webSocketServer = new WebSocketServer({
-  httpServer: server,
-  autoAcceptConnections: false,
-});
-
-function originIsAllowed(origin) {
-  return true; // Permitir todas las conexiones
-}
-
-webSocketServer.on('request', (request) => {
-  if (!originIsAllowed(request.origin)) {
-    request.reject();
-    console.log('Connection from origin ' + request.origin + ' rejected.');
-    return;
-  }
-
-  const connection = request.accept(null, request.origin);
-
-  connection.on('message', async (message) => {
-    const msg = JSON.parse(message.utf8Data);
-
-    if (msg.type === 'NEW_CLIENT') {
-      webSocketServer.connections.forEach((conn) => {
-        conn.sendUTF(JSON.stringify({ type: 'NEW_CLIENT', client: msg.client }));
-      });
-    } else {
-      try {
-        // Guardar el mensaje en la base de datos
-        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            client_name: msg.client,
-            message: msg.text,
-            sender: msg.role,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-
-        // Solo enviar el mensaje a los demás clientes si se guardó correctamente en la base de datos
-        webSocketServer.connections.forEach((conn) => {
-          conn.sendUTF(JSON.stringify(msg));
-        });
-      } catch (error) {
-        console.error('Error saving message:', error);
-      }
-    }
-  });
-
-  connection.on('close', (reasonCode, description) => {
-    console.log('Client has disconnected.');
-  });
-});
-
-server.listen(3001, () => {
-  console.log('WebSocket server is listening on port 3001');
-});
-*/
