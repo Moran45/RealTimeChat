@@ -1,4 +1,5 @@
 const WebSocketServer = require('websocket').server;
+const { Console } = require('console');
 const http = require('http');
 
 async function fetchWrapper(url, options) {
@@ -149,8 +150,13 @@ webSocketServer.on('request', (request) => {
 
         const savedMessage = await response.json();
         webSocketServer.connections.forEach((conn) => {
+        console.log("connection ids: ",conn.chat_id, chat_id);
           if (conn.chat_id === chat_id) {
+            console.log("SavedMEssage: ",savedMessage)
+            console.log("SavedMEssageRole: ",conn.role)
             conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
+          } else {
+            console.log("distintos chats bro");
           }
         });
       } catch (error) {
@@ -237,6 +243,7 @@ webSocketServer.on('request', (request) => {
         }
 
         const messages = await response.json();
+        connection.chat_id = msg.chat_id; // Set chat_id for the admin connection
         connection.sendUTF(JSON.stringify({ type: 'CHAT_MESSAGES', chat_id: msg.chat_id, messages: messages }));
       } catch (error) {
         console.error('Error fetching chat messages:', error);
@@ -252,7 +259,6 @@ webSocketServer.on('request', (request) => {
 server.listen(3001, () => {
   console.log('WebSocket server is listening on port 3001');
 });
-
 
 
 
