@@ -119,6 +119,12 @@ webSocketServer.on('request', (request) => {
       }
 
       connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id }));
+      // Enviar la actualización de chats a todos los administradores
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.role === 'admin' && conn.area_id === connection.area_id) {
+        conn.sendUTF(JSON.stringify({ type: 'NEW_CHAT', chat_id: connection.chat_id, user_id: connection.user_id, area_id: connection.area_id }));
+      }
+    });
     } else if (msg.type === 'MESSAGE') {
       console.log('Processing MESSAGE:', msg);
       try {
@@ -181,7 +187,19 @@ webSocketServer.on('request', (request) => {
         }
 
         const updatedChat = await response.json();
-        connection.sendUTF(JSON.stringify({ type: 'CHAT_REDIRECTED', chat: updatedChat }));
+
+        console.log("newArea: ", msg.new_area_id);
+        console.log("oldArea: ", connection.area_id);
+        console.log("newAreaConnection: ",connection.new_area_id);
+    // Enviar la actualización de chats a todos los administradores de la antigua y nueva área
+    webSocketServer.connections.forEach((conn) => {
+      console.log("newAreaConnection: ",conn.area_id);
+      console.log("newAreaConnection: ",conn.area_id);
+      console.log("newAreaConnection: ",connection.area_id);
+      if (conn.role === 'admin' && (conn.area_id == msg.new_area_id || conn.area_id == connection.area_id)) {
+        conn.sendUTF(JSON.stringify({ type: 'CHAT_REDIRECTED', chat: updatedChat }));
+      }
+    });
       } catch (error) {
         console.error('Error redirecting chat:', error);
       }

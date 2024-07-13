@@ -22,7 +22,11 @@ function Admin() {
       } else if (msg.type === 'MESSAGE' && selectedChat) {
         console.log("message Admin",msg.type);
         setMessages((prev) => [...prev, msg.message]);
-      }
+      }else if (msg.type === 'NEW_CHAT') {
+        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+      }else if (msg.type === 'CHAT_REDIRECTED') {
+      ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    }
     };
 
     ws.send(JSON.stringify({ type: 'GET_CHATS' }));
@@ -49,6 +53,8 @@ function Admin() {
       chat_id: chatId,
       new_area_id: newAreaId,
     }));
+
+    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
   };
 
   const handleSendMessage = () => {
