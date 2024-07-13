@@ -1,7 +1,6 @@
-
-
 import React, { useEffect, useState, useRef } from 'react';
-import { useWebSocket } from '../WebSocketContext';
+import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
+import '../App.css'; // Ajustada la ruta
 
 function Client() {
   const [messages, setMessages] = useState([]);
@@ -31,9 +30,6 @@ function Client() {
       }
     };
   }, [ws, messages]); // Asegúrate de incluir messages en las dependencias para actualizar correctamente
-  
-  
-  
 
   const handleSelectArea = (areaId) => {
     setSelectedArea(areaId);
@@ -114,9 +110,6 @@ function Client() {
       console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
   };
-  
-  
-  
   
   useEffect(() => {
     if (messagesEndRef.current) {
