@@ -168,6 +168,42 @@ webSocketServer.on('request', (request) => {
       } catch (error) {
         console.error('Error saving message:', error);
       }
+    } else if (msg.type === 'REPORT_MESSAGE') {
+      console.log('Processing REPORT_MESSAGE:', msg);
+      try {
+        const chat_id = msg.chat_id || connection.chat_id; // Obtener chat_id de msg o de la conexión
+
+        if (!chat_id) {
+          console.error('Chat ID is null. Cannot save message.');
+          return;
+        }
+
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/save_message.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            chat_id: chat_id,
+            text: msg.message.text,
+            owner_id: msg.owner_id,
+            role: 'system', // Rol de sistema para mensajes de reporte
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const savedMessage = await response.json();
+        webSocketServer.connections.forEach((conn) => {
+          if (conn.chat_id === chat_id) {
+            conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
+          }
+        });
+      } catch (error) {
+        console.error('Error saving report message:', error);
+      }
     } else if (msg.type === 'REDIRECT_CHAT' && connection.role === 'admin') {
       console.log('Processing REDIRECT_CHAT:', msg);
       try {
