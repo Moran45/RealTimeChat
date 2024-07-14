@@ -79,19 +79,40 @@ webSocketServer.on('request', (request) => {
       }
     } else if (msg.type === 'SELECT_AREA' && connection.role === 'client') {
       console.log('Processing area selection:', msg);
-
+    
       // Validar y asignar area_id
       const validAreas = ['1', '2', '3'];
-      console.log("MSG.AREA_ID",msg.area_id);
+      console.log("MSG.AREA_ID", msg.area_id);
       if (validAreas.includes(msg.area_id.toString())) {
         connection.area_id = msg.area_id;
       } else {
         connection.area_id = '1'; // Área por defecto es '1'
       }
-
-      // Crear el chat si no existe
-      if (!connection.chat_id) {
-        try {
+      console.log('chat id antes de startChat:', connection.user_id);
+      console.log('chat id antes de startChat:', connection.area_id);
+    
+      try {
+        // Verificar si ya existe un chat para este usuario y área
+        const checkChatResponse = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/check_chat.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            user_id: connection.user_id,
+            area_id: connection.area_id,
+          }),
+        });
+    
+        if (!checkChatResponse.ok) {
+          throw new Error('Network response was not ok');
+        }
+    
+        const chatData = await checkChatResponse.json();
+        if (chatData.chat_id) {
+          connection.chat_id = chatData.chat_id;
+        } else {
+          // Crear un nuevo chat si no existe
           const chatResponse = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/start_chat.php', {
             method: 'POST',
             headers: {
@@ -102,30 +123,30 @@ webSocketServer.on('request', (request) => {
               area_id: connection.area_id, // Usar el area_id del mensaje
             }),
           });
-
+    
           if (!chatResponse.ok) {
             throw new Error('Network response was not ok');
           }
-
-          const chatData = await chatResponse.json();
-          console.log('Chat data:', chatData);
-          connection.chat_id = chatData.chat_id;
-
-          // Informar al cliente del nuevo chat_id
-          connection.sendUTF(JSON.stringify({ type: 'CHAT_STARTED', chat_id: chatData.chat_id }));
-        } catch (error) {
-          console.error('Error creating chat:', error);
+    
+          const newChatData = await chatResponse.json();
+          connection.chat_id = newChatData.chat_id;
         }
+    
+        console.log('Chat data:', chatData);
+        connection.sendUTF(JSON.stringify({ type: 'CHAT_STARTED', chat_id: connection.chat_id }));
+      } catch (error) {
+        console.error('Error creating or checking chat:', error);
       }
-
+    
       connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id }));
       // Enviar la actualización de chats a todos los administradores
-    webSocketServer.connections.forEach((conn) => {
-      if (conn.role === 'admin' && conn.area_id === connection.area_id) {
-        conn.sendUTF(JSON.stringify({ type: 'NEW_CHAT', chat_id: connection.chat_id, user_id: connection.user_id, area_id: connection.area_id }));
-      }
-    });
-    } else if (msg.type === 'MESSAGE') {
+      webSocketServer.connections.forEach((conn) => {
+        if (conn.role === 'admin' && conn.area_id === connection.area_id) {
+          conn.sendUTF(JSON.stringify({ type: 'NEW_CHAT', chat_id: connection.chat_id, user_id: connection.user_id, area_id: connection.area_id }));
+        }
+      });
+    }
+    else if (msg.type === 'MESSAGE') {
       console.log('Processing MESSAGE:', msg);
       try {
         const chat_id = msg.chat_id || connection.chat_id; // Obtener chat_id de msg o de la conexión
