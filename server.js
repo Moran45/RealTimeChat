@@ -152,6 +152,7 @@ webSocketServer.on('request', (request) => {
         const chat_id = msg.chat_id || connection.chat_id; // Obtener chat_id de msg o de la conexión
 
         if (!chat_id) {
+          alert("Selecciona de nuevo un area porfavor, sucedio un error.");
           console.error('Chat ID is null. Cannot save message.');
           return;
         }
@@ -286,6 +287,28 @@ webSocketServer.on('request', (request) => {
         connection.sendUTF(JSON.stringify({ type: 'CHAT_MESSAGES', chat_id: msg.chat_id, messages: messages }));
       } catch (error) {
         console.error('Error fetching chat messages:', error);
+      }
+    } else if (msg.type === 'MARK_AS_READ') {
+      console.log('Processing MARK_AS_READ:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/mark_messages_read.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            chat_id: msg.chat_id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const result = await response.json();
+        console.log('Messages marked as read:', result);
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
       }
     }
   });

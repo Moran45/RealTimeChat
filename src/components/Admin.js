@@ -71,6 +71,8 @@ function Admin() {
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
     ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
+    // Marcar mensajes como leídos
+    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
   };
 
   const handleRedirectChat = (chatId, newAreaId) => {
@@ -103,6 +105,8 @@ function Admin() {
     };
 
     ws.send(JSON.stringify(message));
+    // Marcar mensajes como leídos
+    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: selectedChat.chat_id }));
     setMessageInput('');
   };
 
