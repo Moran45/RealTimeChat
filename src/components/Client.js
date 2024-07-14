@@ -9,14 +9,27 @@ function Client() {
   const [chatId, setChatId] = useState(null); // Estado para almacenar el chat_id
   const [showModal, setShowModal] = useState(false); // Estado para controlar la visibilidad del modal
   const [showQuestions, setShowQuestions] = useState(true); // Estado para mostrar u ocultar las preguntas
+  const [unreadOwnersCount, setUnreadOwnersCount] = useState(0); // Estado para el número de owners con mensajes sin leer
+  const [intervalId, setIntervalId] = useState(null); // Estado para almacenar el ID del intervalo
   const ws = useWebSocket();
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (!ws) return;
-  
+
+    const fetchUnreadOwnersCount = async () => {
+      console.log('Fetching unread owners count...');
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+    };
+
+    ws.onopen = () => {
+      console.log('WebSocket connection opened.');
+    };
+
     ws.onmessage = async (event) => {
       const msg = JSON.parse(event.data);
+      console.log('Received message:', msg);
+
       if (msg.type === 'WELCOME') {
         setMessages([{ text: msg.message, role: 'system', timestamp: new Date().toISOString() }]);
       } else if (msg.type === 'MESSAGE') {
@@ -29,9 +42,29 @@ function Client() {
         if (!existingMessage) {
           setMessages(prevMessages => [...prevMessages, msg.message]);
         }
+      } else if (msg.type === 'UNREAD_OWNERS_COUNT') {
+        console.log('Received UNREAD_OWNERS_COUNT:', msg.count);
+        setUnreadOwnersCount(msg.count);
       }
     };
-  }, [ws, messages]); // Asegúrate de incluir messages en las dependencias para actualizar correctamente
+
+    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+  }, [ws, messages, intervalId]);
+
+  useEffect(() => {
+    console.log('unreadOwnersCount updated:', unreadOwnersCount);
+  }, [unreadOwnersCount]);
+
+  const startFetchingUnreadOwnersCount = () => {
+    const fetchUnreadOwnersCount = async () => {
+      console.log('Fetching unread owners count...');
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+    };
+
+    fetchUnreadOwnersCount(); // Fetch immediately
+    const newIntervalId = setInterval(fetchUnreadOwnersCount, 10000); // Cada 10 segundos
+    setIntervalId(newIntervalId);
+  };
 
   const handleSelectArea = (areaId, messageText) => {
     setSelectedArea(areaId);
@@ -56,6 +89,9 @@ function Client() {
     }));
 
     setMessageInput('');
+    if (!intervalId) {
+      startFetchingUnreadOwnersCount();
+    }
   };
 
   const handleReportClick = () => {
@@ -141,7 +177,7 @@ function Client() {
   return (
     <div className="client-container">
       <div className="chat-window">
-        <h2>Chat</h2>
+        <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
         <div className="messages">
           {messages.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
