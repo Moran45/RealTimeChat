@@ -1,13 +1,14 @@
-
-
 import React, { useEffect, useState, useRef } from 'react';
-import { useWebSocket } from '../WebSocketContext';
+import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
+import '../App.css'; // Ajustada la ruta
 
 function Client() {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [selectedArea, setSelectedArea] = useState(null);
   const [chatId, setChatId] = useState(null); // Estado para almacenar el chat_id
+  const [showModal, setShowModal] = useState(false); // Estado para controlar la visibilidad del modal
+  const [showQuestions, setShowQuestions] = useState(true); // Estado para mostrar u ocultar las preguntas
   const ws = useWebSocket();
   const messagesEndRef = useRef(null);
 
@@ -31,16 +32,15 @@ function Client() {
       }
     };
   }, [ws, messages]); // Asegúrate de incluir messages en las dependencias para actualizar correctamente
-  
-  
-  
 
-  const handleSelectArea = (areaId) => {
+  const handleSelectArea = (areaId, messageText) => {
     setSelectedArea(areaId);
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
+    sendMessage(messageText); // Enviar el mensaje cuando se selecciona un área
+    setShowQuestions(false); // Ocultar las preguntas
   };
 
   const handleSendMessage = () => {
@@ -58,14 +58,19 @@ function Client() {
     setMessageInput('');
   };
 
-  const handleReportClick = async () => {
+  const handleReportClick = () => {
+    setShowModal(true);
+  };
+
+  const confirmReport = async () => {
+    setShowModal(false);
     const userId = localStorage.getItem('user_id');
     if (!ws || !userId) {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
   
-    handleSelectArea(3);
+    handleSelectArea(3, 'Reporte: Problema reportado.'); // Usar área 3 como ejemplo
   
     setTimeout(() => {
       ws.send(JSON.stringify({
@@ -114,9 +119,18 @@ function Client() {
       console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
   };
-  
-  
-  
+
+  const sendMessage = (text) => {
+    if (text.trim() !== '' && ws) {
+      const message = {
+        type: 'MESSAGE',
+        text: text,
+        owner_id: localStorage.getItem('user_id'),
+      };
+      ws.send(JSON.stringify(message));
+      setMessages((prevMessages) => [...prevMessages, message]);
+    }
+  };
   
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -126,16 +140,6 @@ function Client() {
 
   return (
     <div className="client-container">
-      <div className='Reportar'>
-        <p>Reportar cuenta</p>
-        <button onClick={handleReportClick}>Enviar reporte</button>
-      </div>
-      <div className="area-selection">
-        <h2>Select Area</h2>
-        <button onClick={() => handleSelectArea(1)}>Area 1</button>
-        <button onClick={() => handleSelectArea(2)}>Area 2</button>
-        <button onClick={() => handleSelectArea(3)}>Area 3</button>
-      </div>
       <div className="chat-window">
         <h2>Chat</h2>
         <div className="messages">
@@ -152,11 +156,45 @@ function Client() {
             type="text"
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Escribe tu mensaje..."
           />
-          <button onClick={handleSendMessage}>Send</button>
+          <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
+        </div>
+        {showQuestions && (
+          <div className="question-buttons mt-3">
+            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(1, 'Problemas con mi cuenta')}>Problemas con mi cuenta</button>
+            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(2, 'Problemas con mi pago')}>Problemas con mi pago</button>
+            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(3, 'Problemas con la página web')}>Problemas con la página web</button>
+          </div>
+        )}
+        <div className="mt-3">
+          <button className="btn btn-warning" onClick={handleReportClick}>Enviar reporte</button>
         </div>
       </div>
+
+      {/* Modal de confirmación */}
+      {showModal && (
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ display: 'block' }}>
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Confirmar Envío de Reporte</h5>
+                <button type="button" className="close" onClick={() => setShowModal(false)} aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div className="modal-body">
+                ¿Estás seguro de que deseas enviar este reporte?
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-danger" onClick={confirmReport}>Confirmar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showModal && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 }
