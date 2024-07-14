@@ -310,7 +310,27 @@ webSocketServer.on('request', (request) => {
       } catch (error) {
         console.error('Error marking messages as read:', error);
       }
-    }
+    }else if (msg.type === 'GET_UNREAD_OWNERS') {
+      console.log('Processing GET_UNREAD_OWNERS:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/get_owners_messages_unread.php', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+    
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+    
+        const unreadOwners = await response.json();
+        console.log('Unread Owners Count:', unreadOwners.unread_count);
+        connection.sendUTF(JSON.stringify({ type: 'UNREAD_OWNERS_COUNT', count: unreadOwners.unread_count }));
+      } catch (error) {
+        console.error('Error fetching unread owners count:', error);
+      }
+    }    
   });
 
   connection.on('close', (reasonCode, description) => {
