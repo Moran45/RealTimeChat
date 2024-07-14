@@ -94,7 +94,7 @@ function Client() {
         console.log('Reporte realizado con éxito:', data);
         const reportMessage = {
           type: 'MESSAGE',
-          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
+          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nUsuario ID: ${data.report.usuario}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
           role: 'system',
           timestamp: data.report.timestamp,
           chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
