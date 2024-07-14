@@ -143,7 +143,7 @@ function Admin() {
           <h2>Chats</h2>
           {chats.map((chat, index) => (
             <div key={index} onClick={() => handleSelectChat(chat)} className="chat-item p-2 border rounded mb-2">
-              <div>{chat.user_name}</div>
+              <div>{chat.user_name} - {chat.unread_count} no leídos</div>
               <button className="btn btn-secondary" onClick={(e) => {
                 e.stopPropagation();
                 handleRedirectChat(chat.chat_id, 2);
