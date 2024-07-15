@@ -102,16 +102,16 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-  
+
     handleSelectArea(3);
-  
+
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-  
+
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -122,9 +122,9 @@ function Client() {
           user_id: userId,
         }),
       });
-  
+
       const text = await response.text();
-  
+
       const data = JSON.parse(text);
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
@@ -138,7 +138,7 @@ function Client() {
           chat_id: chatId,
           owner_id: userId,
         };
-  
+
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
@@ -159,16 +159,16 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-  
+
     handleSelectArea(3, 'Reporte: Problema reportado.');
-  
+
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-  
+
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -179,9 +179,9 @@ function Client() {
           user_id: userId,
         }),
       });
-  
+
       const text = await response.text();
-  
+
       const data = JSON.parse(text);
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
@@ -195,7 +195,7 @@ function Client() {
           chat_id: chatId,
           owner_id: userId,
         };
-  
+
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
@@ -221,7 +221,7 @@ function Client() {
       setMessages((prevMessages) => [...prevMessages, message]);
     }
   };
-  
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -233,37 +233,40 @@ function Client() {
   };
 
   return (
-    <div className="client-container">
+    <div className="Client-container">
       {!showChat ? (
-        <button className="chat-toggle-button" onClick={toggleChat}>
-          <i className="bi bi-chat-dots"></i>
+        <button className="Client-chat-toggle-button" onClick={toggleChat}>
+          <img src="https://cdn-icons-png.freepik.com/512/5041/5041093.png" alt="Chat Icon" className="Client-chat-icon" />
         </button>
       ) : (
-        <div className="chat-window">
-          <button className="chat-close-button" onClick={toggleChat}>
+        <div className="Client-chat-window">
+          <button className="Client-chat-close-button" onClick={toggleChat}>
             <i className="bi bi-x"></i>
           </button>
           <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
-          <div className="messages">
+          <div className="Client-messages">
             {messages.map((msg, index) => (
-              <div key={index} className={`message ${msg.role}`}>
-                <div>{msg.text}</div>
-                <div>{msg.timestamp}</div>
+              <div key={index} className={`Client-message ${msg.role === 'Admin' ? 'Admin' : 'Cliente'}`}>
+                <div className="Client-message-content">
+                  <div>{msg.text}</div>
+                  <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
+                </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
-          <div className="message-input">
+          <div className="Client-message-input">
             <input
               type="text"
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder="Escribe tu mensaje..."
+              className="form-control"
             />
             <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
           </div>
           {showQuestions && (
-            <div className="question-buttons mt-3">
+            <div className="Client-question-buttons mt-3">
               <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(1, 'Problemas con mi cuenta')}>Problemas con mi cuenta</button>
               <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(2, 'Problemas con mi pago')}>Problemas con mi pago</button>
               <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(3, 'Problemas con la página web')}>Problemas con la página web</button>

@@ -9,6 +9,7 @@ import './App.css';
 const AppContent = () => {
   const location = useLocation();
   const isClientRoute = location.pathname === '/client';
+  const isAdminRoute = location.pathname === '/admin'; // Nuevo
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleSidebar = () => {
@@ -16,8 +17,8 @@ const AppContent = () => {
   };
 
   return (
-    <div className={`App_nav d-flex ${isClientRoute ? '' : 'App_nav_expanded'}`}>
-      {!isClientRoute && (
+    <div className={`App_nav d-flex ${isClientRoute || isAdminRoute ? '' : 'App_nav_expanded'}`}>
+      {!isClientRoute && !isAdminRoute && ( // Modificado
         <nav className="App_nav_sidebar d-flex flex-column align-items-center p-3 text-white bg-dark">
           <a href="/" className="App_nav_brand d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
             <span className="App_nav_circle fs-4">A</span>
@@ -41,8 +42,8 @@ const AppContent = () => {
           <div className="App_nav_handle" onClick={toggleSidebar}></div>
         </nav>
       )}
-      <div className={`App_nav_content flex-grow-1 p-3 ${isClientRoute ? '' : ''}`}>
-        {!isClientRoute && (
+      <div className={`App_nav_content flex-grow-1 p-3 ${isClientRoute || isAdminRoute ? '' : ''}`}>
+        {!isClientRoute && !isAdminRoute && (
           <>
             <div className="App_nav_header d-flex justify-content-between align-items-center mb-4">
               <h2>Messages</h2>
