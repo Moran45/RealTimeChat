@@ -59,11 +59,11 @@ webSocketServer.on('request', (request) => {
           connection.role = 'admin';
           connection.area_id = authData.area_id;
           connection.user_id = authData.user_id; // Guardar el user_id del admin
-          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id }));
+          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1 }));
         } else if (authData.role === 'client') {
           connection.role = 'client';
           connection.user_id = authData.user_id;
-          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id }));
+          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
           
           // Enviar mensaje de bienvenida al cliente
           connection.sendUTF(JSON.stringify({
@@ -79,19 +79,40 @@ webSocketServer.on('request', (request) => {
       }
     } else if (msg.type === 'SELECT_AREA' && connection.role === 'client') {
       console.log('Processing area selection:', msg);
-
+    
       // Validar y asignar area_id
       const validAreas = ['1', '2', '3'];
-      console.log("MSG.AREA_ID",msg.area_id);
+      console.log("MSG.AREA_ID", msg.area_id);
       if (validAreas.includes(msg.area_id.toString())) {
         connection.area_id = msg.area_id;
       } else {
         connection.area_id = '1'; // Área por defecto es '1'
       }
-
-      // Crear el chat si no existe
-      if (!connection.chat_id) {
-        try {
+      console.log('chat id antes de startChat:', connection.user_id);
+      console.log('chat id antes de startChat:', connection.area_id);
+    
+      try {
+        // Verificar si ya existe un chat para este usuario y área
+        const checkChatResponse = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/check_chat.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            user_id: connection.user_id,
+            area_id: connection.area_id,
+          }),
+        });
+    
+        if (!checkChatResponse.ok) {
+          throw new Error('Network response was not ok');
+        }
+    
+        const chatData = await checkChatResponse.json();
+        if (chatData.chat_id) {
+          connection.chat_id = chatData.chat_id;
+        } else {
+          // Crear un nuevo chat si no existe
           const chatResponse = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/start_chat.php', {
             method: 'POST',
             headers: {
@@ -102,35 +123,36 @@ webSocketServer.on('request', (request) => {
               area_id: connection.area_id, // Usar el area_id del mensaje
             }),
           });
-
+    
           if (!chatResponse.ok) {
             throw new Error('Network response was not ok');
           }
-
-          const chatData = await chatResponse.json();
-          console.log('Chat data:', chatData);
-          connection.chat_id = chatData.chat_id;
-
-          // Informar al cliente del nuevo chat_id
-          connection.sendUTF(JSON.stringify({ type: 'CHAT_STARTED', chat_id: chatData.chat_id }));
-        } catch (error) {
-          console.error('Error creating chat:', error);
+    
+          const newChatData = await chatResponse.json();
+          connection.chat_id = newChatData.chat_id;
         }
+    
+        console.log('Chat data:', chatData);
+        connection.sendUTF(JSON.stringify({ type: 'CHAT_STARTED', chat_id: connection.chat_id }));
+      } catch (error) {
+        console.error('Error creating or checking chat:', error);
       }
-
+    
       connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id }));
       // Enviar la actualización de chats a todos los administradores
-    webSocketServer.connections.forEach((conn) => {
-      if (conn.role === 'admin' && conn.area_id === connection.area_id) {
-        conn.sendUTF(JSON.stringify({ type: 'NEW_CHAT', chat_id: connection.chat_id, user_id: connection.user_id, area_id: connection.area_id }));
-      }
-    });
-    } else if (msg.type === 'MESSAGE') {
+      webSocketServer.connections.forEach((conn) => {
+        if (conn.role === 'admin' && conn.area_id === connection.area_id) {
+          conn.sendUTF(JSON.stringify({ type: 'NEW_CHAT', chat_id: connection.chat_id, user_id: connection.user_id, area_id: connection.area_id }));
+        }
+      });
+    }
+    else if (msg.type === 'MESSAGE') {
       console.log('Processing MESSAGE:', msg);
       try {
         const chat_id = msg.chat_id || connection.chat_id; // Obtener chat_id de msg o de la conexión
 
         if (!chat_id) {
+          alert("Selecciona de nuevo un area porfavor, sucedio un error.");
           console.error('Chat ID is null. Cannot save message.');
           return;
         }
@@ -147,6 +169,7 @@ webSocketServer.on('request', (request) => {
             text: msg.text,
             owner_id: connection.user_id || msg.owner_id, // Usar el user_id de la conexión o de msg
             role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'), // Asignar el rol apropiado
+            IsAdmin: msg.IsAdmin
           }),
         });
 
@@ -188,6 +211,7 @@ webSocketServer.on('request', (request) => {
             text: msg.message.text,
             owner_id: msg.owner_id,
             role: 'system', // Rol de sistema para mensajes de reporte
+            IsAdmin: msg.IsAdmin
           }),
         });
 
@@ -265,6 +289,76 @@ webSocketServer.on('request', (request) => {
         connection.sendUTF(JSON.stringify({ type: 'CHAT_MESSAGES', chat_id: msg.chat_id, messages: messages }));
       } catch (error) {
         console.error('Error fetching chat messages:', error);
+      }
+    } else if (msg.type === 'MARK_AS_READ') {
+      console.log('Processing MARK_AS_READ:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/mark_messages_read.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            chat_id: msg.chat_id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const result = await response.json();
+        console.log('Messages marked as read:', result);
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+    }else if (msg.type === 'GET_UNREAD_OWNERS') {
+      console.log('Processing GET_UNREAD_OWNERS:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/get_owners_messages_unread.php', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        });
+    
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const unreadOwners = await response.json();
+        console.log('Unread Owners Count:', unreadOwners.unread_count);
+        connection.sendUTF(JSON.stringify({ type: 'UNREAD_OWNERS_COUNT', count: unreadOwners.unread_count }));
+      } catch (error) {
+        console.error('Error fetching unread owners count:', error);
+      }
+    }else if (msg.type === 'DELETE_CHAT' && connection.role === 'admin') {
+      console.log('Processing DELETE_CHAT:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/delete_chat.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            chat_id: msg.chat_id,
+          }),
+        });
+    
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+    
+        const result = await response.json();
+        console.log('Chat deleted:', result);
+    
+        // Enviar actualización de chats a todos los administradores
+        webSocketServer.connections.forEach((conn) => {
+          if (conn.role === 'admin') {
+            conn.sendUTF(JSON.stringify({ type: 'CHAT_DELETED', chat_id: msg.chat_id }));
+          }
+        });
+      } catch (error) {
+        console.error('Error deleting chat:', error);
       }
     }
   });
