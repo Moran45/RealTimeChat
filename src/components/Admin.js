@@ -28,7 +28,9 @@ function Admin() {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       } else if (msg.type === 'CHAT_REDIRECTED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'NEW_CLIENT') {
+      } else if(msg.type === 'CHAT_DELETED'){
+        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+      }else if (msg.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
           if (!prevClients.find(client => client.name === msg.client)) {
             return [...prevClients, { name: msg.client, unreadCount: 0 }];
@@ -124,6 +126,16 @@ function Admin() {
       ws.send(JSON.stringify(message));
       setIsFinalized(true);
       setShowModal(false);
+
+      handleRedirectChat(selectedChat.chat_id, 4);
+
+      // Programar la eliminación del chat en 1 minuto
+      setTimeout(() => {
+        ws.send(JSON.stringify({
+          type: 'DELETE_CHAT',
+          chat_id: selectedChat.chat_id
+        }));
+      }, 1 * 60 * 1000); // un minuto
     }
   };
 
@@ -156,11 +168,11 @@ function Admin() {
             <>
               <h3>Chat con {selectedChat.user_name}</h3>
               <div className="admin-chat-messages p-3">
-                {messages.map((msg, index) => (
-                  <div key={index} className={`message ${msg.role === 'Admin' ? 'admin-message' : 'client-message'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'finalized-message' : ''}`}>
-                    <strong>{msg.role === 'Admin' ? 'A' : 'C'}:</strong> {msg.text}
-                  </div>
-                ))}
+              {Array.isArray(messages) && messages.map((msg, index) => (
+                <div key={index} className={`message ${msg.role === 'Admin' ? 'admin-message' : 'client-message'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'finalized-message' : ''}`}>
+                  <strong>{msg.role === 'Admin' ? 'A' : 'C'}:</strong> {msg.text}
+                </div>
+              ))}
                 <div ref={messagesEndRef} />
               </div>
               <div className="admin-chat-input d-flex align-items-center p-3">

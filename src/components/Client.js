@@ -24,23 +24,25 @@ function Client() {
       } else if (msg.type === 'CHAT_STARTED') {
         setChatId(msg.chat_id);
       } else if (msg.type === 'REPORT_MESSAGE') {
-        // Verificar si el mensaje ya está en el estado antes de agregarlo
         const existingMessage = messages.find(m => m.timestamp === msg.message.timestamp);
         if (!existingMessage) {
           setMessages(prevMessages => [...prevMessages, msg.message]);
         }
       }
     };
-  }, [ws, messages]); // Asegúrate de incluir messages en las dependencias para actualizar correctamente
+  }, [ws, messages]);
 
   const handleSelectArea = (areaId, messageText) => {
+    const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
+    setMessageInput(messageText); // Colocar el texto en el input del chat
+    setShowQuestions(false); // Ocultar las preguntas
+
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
-    sendMessage(messageText); // Enviar el mensaje cuando se selecciona un área
-    setShowQuestions(false); // Ocultar las preguntas
+
   };
 
   const handleSendMessage = () => {
@@ -48,13 +50,7 @@ function Client() {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-
-    ws.send(JSON.stringify({
-      type: 'MESSAGE',
-      text: messageInput,
-      owner_id: localStorage.getItem('user_id'),
-    }));
-
+    sendMessage(messageInput);
     setMessageInput('');
   };
 
@@ -106,7 +102,6 @@ function Client() {
           owner_id: userId,
         };
   
-        // Informar al servidor WebSocket del nuevo reporte
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
@@ -121,10 +116,11 @@ function Client() {
   };
 
   const sendMessage = (text) => {
-    if (text.trim() !== '' && ws) {
+    if (text.trim() !== '' && ws && chatId) {
       const message = {
         type: 'MESSAGE',
         text: text,
+        chat_id: chatId,
         owner_id: localStorage.getItem('user_id'),
       };
       ws.send(JSON.stringify(message));
@@ -172,7 +168,6 @@ function Client() {
         </div>
       </div>
 
-      {/* Modal de confirmación */}
       {showModal && (
         <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ display: 'block' }}>
           <div className="modal-dialog" role="document">

@@ -310,7 +310,37 @@ webSocketServer.on('request', (request) => {
       } catch (error) {
         console.error('Error marking messages as read:', error);
       }
+    } else if (msg.type === 'DELETE_CHAT' && connection.role === 'admin') {
+      console.log('Processing DELETE_CHAT:', msg);
+      try {
+        const response = await fetchWrapper('https://phmsoft.tech/Ultimochatlojuro/delete_chat.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            chat_id: msg.chat_id,
+          }),
+        });
+    
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+    
+        const result = await response.json();
+        console.log('Chat deleted:', result);
+    
+        // Enviar actualización de chats a todos los administradores
+        webSocketServer.connections.forEach((conn) => {
+          if (conn.role === 'admin') {
+            conn.sendUTF(JSON.stringify({ type: 'CHAT_DELETED', chat_id: msg.chat_id }));
+          }
+        });
+      } catch (error) {
+        console.error('Error deleting chat:', error);
+      }
     }
+     
   });
 
   connection.on('close', (reasonCode, description) => {
