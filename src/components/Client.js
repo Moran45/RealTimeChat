@@ -37,7 +37,6 @@ function Client() {
       } else if (msg.type === 'CHAT_STARTED') {
         setChatId(msg.chat_id);
       } else if (msg.type === 'REPORT_MESSAGE') {
-        // Verificar si el mensaje ya está en el estado antes de agregarlo
         const existingMessage = messages.find(m => m.timestamp === msg.message.timestamp);
         if (!existingMessage) {
           setMessages(prevMessages => [...prevMessages, msg.message]);
@@ -67,13 +66,16 @@ function Client() {
   };
 
   const handleSelectArea = (areaId, messageText) => {
+    const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
+    setMessageInput(messageText); // Colocar el texto en el input del chat
+    setShowQuestions(false); // Ocultar las preguntas
+
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
-    sendMessage(messageText); // Enviar el mensaje cuando se selecciona un área
-    setShowQuestions(false); // Ocultar las preguntas
+
   };
 
   const handleSendMessage = () => {
@@ -81,13 +83,14 @@ function Client() {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-
-    ws.send(JSON.stringify({
+    // Aquí eliminamos la adición del mensaje al estado para evitar duplicación
+    const message = {
       type: 'MESSAGE',
       text: messageInput,
+      chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
-    }));
-
+    };
+    ws.send(JSON.stringify(message));
     setMessageInput('');
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
@@ -135,14 +138,13 @@ function Client() {
         console.log('Reporte realizado con éxito:', data);
         const reportMessage = {
           type: 'MESSAGE',
-          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nUsuario ID: ${data.report.usuario}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
+          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
           role: 'system',
           timestamp: data.report.timestamp,
           chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
           owner_id: userId,
         };
   
-        // Informar al servidor WebSocket del nuevo reporte
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
@@ -157,10 +159,11 @@ function Client() {
   };
 
   const sendMessage = (text) => {
-    if (text.trim() !== '' && ws) {
+    if (text.trim() !== '' && ws && chatId) {
       const message = {
         type: 'MESSAGE',
         text: text,
+        chat_id: chatId,
         owner_id: localStorage.getItem('user_id'),
       };
       ws.send(JSON.stringify(message));
@@ -208,7 +211,6 @@ function Client() {
         </div>
       </div>
 
-      {/* Modal de confirmación */}
       {showModal && (
         <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ display: 'block' }}>
           <div className="modal-dialog" role="document">
