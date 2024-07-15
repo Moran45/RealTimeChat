@@ -10,6 +10,7 @@ function Admin() {
   const [clients, setClients] = useState([]);
   const [isFinalized, setIsFinalized] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc');
   const messagesEndRef = useRef(null);
   const ws = useWebSocket();
 
@@ -20,6 +21,7 @@ function Admin() {
       const msg = JSON.parse(event.data);
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
+        sortChats(msg.chats, 'desc');
       } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         setMessages(msg.messages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
@@ -69,6 +71,20 @@ function Admin() {
       }
     };
   }, [ws, selectedChat]);
+
+  const sortChats = (chatsToSort, order) => {
+    const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
+    const sortedChats = chatsWithUnreadMessages.sort((a, b) => {
+      const lastMessageA = a.messages[a.messages.length - 1];
+      const lastMessageB = b.messages[b.messages.length - 1];
+      return order === 'desc'
+        ? new Date(lastMessageB.timestamp) - new Date(lastMessageA.timestamp)
+        : new Date(lastMessageA.timestamp) - new Date(lastMessageB.timestamp);
+    });
+    const unchangedChats = chatsToSort.filter(chat => chat.unread_count === 0);
+    setChats([...sortedChats, ...unchangedChats]);
+    setSortOrder(order);
+  };
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
@@ -148,11 +164,17 @@ function Admin() {
     }
   }, [messages]);
 
+  const handleSortChats = () => {
+    sortChats(chats, sortOrder === 'desc' ? 'asc' : 'desc');
+  };
+
   return (
     <div className="admin-app container-fluid">
       <div className="admin-chat-container row">
         <div className="admin-chat-list col-md-4">
           <h2>Chats</h2>
+          <button className="btn btn-primary mb-3" onClick={handleSortChats}>Acomodar</button>
+          <span>{sortOrder === 'desc' ? 'Mostrando más recientes' : 'Mostrando más antiguos'}</span>
           {chats.map((chat, index) => (
             <div key={index} onClick={() => handleSelectChat(chat)} className="chat-item p-2 border rounded mb-2">
               <div>{chat.user_name} - {chat.unread_count} no leídos</div>
