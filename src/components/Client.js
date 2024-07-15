@@ -152,6 +152,7 @@ function Client() {
           user_id: userId,
           chat_id: chatId, // Asegúrate de enviar el chatId correcto al servidor
           owner_id: userId,
+          IsAdmin : 0,
         }));
       }
     } catch (error) {
@@ -166,6 +167,7 @@ function Client() {
         text: text,
         chat_id: chatId,
         owner_id: localStorage.getItem('user_id'),
+        IsAdmin: 0
       };
       ws.send(JSON.stringify(message));
       setMessages((prevMessages) => [...prevMessages, message]);
