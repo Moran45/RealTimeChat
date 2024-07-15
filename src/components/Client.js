@@ -97,8 +97,61 @@ function Client() {
     }
   };
 
-  const handleReportClick = () => {
-    setShowModal(true);
+  const handleReportClick = async () => {
+    const userId = localStorage.getItem('user_id');
+    if (!ws || !userId) {
+      alert('WebSocket connection not established or user_id not found.');
+      return;
+    }
+  
+    handleSelectArea(3);
+  
+    setTimeout(() => {
+      ws.send(JSON.stringify({
+        type: 'START_CHAT',
+        user_id: userId,
+      }));
+    }, 500);
+  
+    try {
+      const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          user_id: userId,
+        }),
+      });
+  
+      const text = await response.text(); // Obtén la respuesta como texto primero
+  
+      const data = JSON.parse(text); // Luego intenta convertirla a JSON
+      if (data.error) {
+        console.error('Error al hacer el reporte:', data.error);
+      } else {
+        console.log('Reporte realizado con éxito:', data);
+        const reportMessage = {
+          type: 'MESSAGE',
+          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
+          role: 'system',
+          timestamp: data.report.timestamp,
+          chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
+          owner_id: userId,
+        };
+  
+        // Informar al servidor WebSocket del nuevo reporte
+        ws.send(JSON.stringify({
+          type: 'REPORT_MESSAGE',
+          message: reportMessage,
+          user_id: userId,
+          chat_id: chatId, // Asegúrate de enviar el chatId correcto al servidor
+          owner_id: userId,
+        }));
+      }
+    } catch (error) {
+      console.error('Error al ejecutar la API de hacer_reporte:', error);
+    }
   };
 
   const confirmReport = async () => {
@@ -143,7 +196,6 @@ function Client() {
           timestamp: data.report.timestamp,
           chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
           owner_id: userId,
-          IsAdmin : 0,
         };
   
         ws.send(JSON.stringify({
