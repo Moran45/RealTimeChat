@@ -34,6 +34,9 @@ function Client() {
         setMessages([{ text: msg.message, role: 'system', timestamp: new Date().toISOString() }]);
       } else if (msg.type === 'MESSAGE') {
         setMessages((prev) => [...prev, msg.message]);
+        if (msg.message.IsAdmin === 1) {
+          setUnreadOwnersCount(0); // Resetear unreadOwnersCount si el mensaje es del administrador
+        }
       } else if (msg.type === 'CHAT_STARTED') {
         setChatId(msg.chat_id);
       } else if (msg.type === 'REPORT_MESSAGE') {
@@ -235,7 +238,7 @@ function Client() {
   return (
     <div className="client-container">
       <div className="chat-window">
-        <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
+        <h2>Chat {unreadOwnersCount > 0 && `(Personas antes que tu: ${unreadOwnersCount})`}</h2>
         <div className="messages">
           {messages.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
