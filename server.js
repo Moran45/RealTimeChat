@@ -59,11 +59,11 @@ webSocketServer.on('request', (request) => {
           connection.role = 'admin';
           connection.area_id = authData.area_id;
           connection.user_id = authData.user_id; // Guardar el user_id del admin
-          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id }));
+          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1 }));
         } else if (authData.role === 'client') {
           connection.role = 'client';
           connection.user_id = authData.user_id;
-          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id }));
+          connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
           
           // Enviar mensaje de bienvenida al cliente
           connection.sendUTF(JSON.stringify({
@@ -169,6 +169,7 @@ webSocketServer.on('request', (request) => {
             text: msg.text,
             owner_id: connection.user_id || msg.owner_id, // Usar el user_id de la conexión o de msg
             role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'), // Asignar el rol apropiado
+            IsAdmin: msg.IsAdmin
           }),
         });
 
@@ -210,6 +211,7 @@ webSocketServer.on('request', (request) => {
             text: msg.message.text,
             owner_id: msg.owner_id,
             role: 'system', // Rol de sistema para mensajes de reporte
+            IsAdmin: msg.IsAdmin
           }),
         });
 

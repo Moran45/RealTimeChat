@@ -143,6 +143,7 @@ function Client() {
           timestamp: data.report.timestamp,
           chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
           owner_id: userId,
+          IsAdmin : 0,
         };
   
         ws.send(JSON.stringify({

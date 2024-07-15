@@ -119,7 +119,8 @@ function Admin() {
       chat_id: selectedChat.chat_id,
       text: messageInput,
       owner_id: localStorage.getItem('user_id'),
-      role: 'Admin'
+      role: 'Admin',
+      IsAdmin : 1,
     };
 
     ws.send(JSON.stringify(message));
