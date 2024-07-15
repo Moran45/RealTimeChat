@@ -16,7 +16,7 @@ function Admin() {
 
   useEffect(() => {
     if (!ws) return;
-
+  
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'CHATS') {
@@ -24,15 +24,21 @@ function Admin() {
         sortChats(msg.chats, 'desc');
       } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         setMessages(msg.messages);
-      } else if (msg.type === 'MESSAGE' && selectedChat) {
+      } else if (msg.type === 'MESSAGE') {
         setMessages((prev) => [...prev, msg.message]);
-      } else if (msg.type === 'NEW_CHAT') {
+        if (!selectedChat || msg.chat_id !== selectedChat.chat_id) {
+          // Incrementar el contador de mensajes no leídos para el chat correspondiente
+          setChats((prevChats) =>
+            prevChats.map((chat) =>
+              chat.chat_id === msg.chat_id
+                ? { ...chat, unread_count: (chat.unread_count || 0) + 1 }
+                : chat
+            )
+          );
+        }
+      } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'CHAT_REDIRECTED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if(msg.type === 'CHAT_DELETED'){
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      }else if (msg.type === 'NEW_CLIENT') {
+      } else if (msg.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
           if (!prevClients.find(client => client.name === msg.client)) {
             return [...prevClients, { name: msg.client, unreadCount: 0 }];
@@ -50,7 +56,7 @@ function Admin() {
           }
           return updatedMessages;
         });
-
+  
         if (msg.role === 'Cliente') {
           setClients((prevClients) =>
             prevClients.map((client) =>
@@ -62,15 +68,16 @@ function Admin() {
         }
       }
     };
-
+  
     ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-
+  
     return () => {
       if (ws) {
         ws.onmessage = null; // Cleanup listener
       }
     };
   }, [ws, selectedChat]);
+  
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
