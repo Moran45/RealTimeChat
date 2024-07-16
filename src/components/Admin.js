@@ -12,6 +12,7 @@ function Admin() {
   const [showModal, setShowModal] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
   const ws = useWebSocket();
 
@@ -180,16 +181,27 @@ function Admin() {
     sortChats(chats, sortOrder === 'desc' ? 'asc' : 'desc');
   };
 
+  const handleToggleUnreadFilter = () => {
+    setShowUnreadOnly(!showUnreadOnly);
+  };
+
   return (
     <div className="admin-container">
       <div className="admin-header bg-primary text-white p-3">
         <h2>Chats</h2>
-        <button className="btn btn-light" onClick={handleSortChats}>Acomodar</button>
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
-          <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
-          {chats.map((chat, index) => (
+          <div className="d-flex justify-content-between mb-3">
+            <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
+            <button className="btn btn-light" onClick={handleSortChats}>
+              {sortOrder === 'desc' ? 'Mostrar más antiguos' : 'Mostrar más recientes'}
+            </button>
+          </div>
+          <button className="btn btn-light mb-3" onClick={handleToggleUnreadFilter}>
+            {showUnreadOnly ? 'Todos' : 'No Leídos'}
+          </button>
+          {chats.filter(chat => !showUnreadOnly || chat.unread_count > 0).map((chat, index) => (
             <div key={index} onClick={() => handleSelectChat(chat)} className={`admin-chat-item p-2 mb-2 ${selectedChat?.chat_id === chat.chat_id ? 'bg-info text-white' : 'bg-light'}`}>
               <div>{chat.user_name} - {chat.unread_count} no leídos</div>
             </div>
