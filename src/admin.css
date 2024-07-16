@@ -48,33 +48,41 @@
   flex-grow: 1;
   overflow-y: auto;
   background-color: #f9f9f9;
+  max-height: 70vh; /* Fijar altura máxima para permitir desplazamiento */
 }
 
 .admin-message {
   padding: 10px;
   border-radius: 5px;
   margin-bottom: 10px;
-  max-width: 70%;
+  max-width: 60%;
 }
 
 .admin-message-admin {
-  background-color: #d4edda;
+  background-color: #d1e7dd;
   color: #0f5132;
-  align-self: flex-end;
-  text-align: right;
+  align-self: flex-end; /* Alinear al lado derecho */
 }
 
 .admin-message-client {
   background-color: #cff4fc;
   color: #055160;
-  align-self: flex-start;
-  text-align: left;
+  align-self: flex-start; /* Alinear al lado izquierdo */
 }
 
 .admin-message-finalized {
   background-color: #f8d7da;
   color: #842029;
   text-align: center;
+}
+
+.admin-message-separator {
+  background-color: #f8d7da;
+  color: #842029;
+  text-align: center;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 5px;
 }
 
 .admin-chat-input {
@@ -85,4 +93,15 @@
 
 .modal-backdrop {
   opacity: 0.5 !important;
+}
+
+.div-btn {
+  margin-right: 10px;
+}
+
+.unread-indicator {
+  width: 10px;
+  height: 10px;
+  background-color: #007bff;
+  border-radius: 50%;
 }

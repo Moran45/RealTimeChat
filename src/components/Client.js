@@ -69,13 +69,25 @@ function Client() {
   const handleSelectArea = (areaId, messageText) => {
     const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
-    setMessageInput(messageText);
     setShowQuestions(false);
 
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
+
+    const message = {
+      type: 'MESSAGE',
+      text: messageText,
+      chat_id: chatId,
+      owner_id: userId,
+    };
+    ws.send(JSON.stringify(message));
+    setMessages((prevMessages) => [...prevMessages, message]);
+
+    if (!intervalId) {
+      startFetchingUnreadOwnersCount();
+    }
   };
 
   const handleSendMessage = () => {
@@ -96,6 +108,12 @@ function Client() {
     }
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+
   const handleReportClick = async () => {
     const userId = localStorage.getItem('user_id');
     if (!ws || !userId) {
@@ -103,7 +121,7 @@ function Client() {
       return;
     }
 
-    handleSelectArea(3);
+    handleSelectArea(3, 'Reporte: Problema reportado.');
 
     setTimeout(() => {
       ws.send(JSON.stringify({
@@ -262,6 +280,7 @@ function Client() {
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder="Escribe tu mensaje..."
               className="form-control"
+              onKeyPress={handleKeyPress}
             />
             <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
           </div>
