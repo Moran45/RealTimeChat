@@ -138,6 +138,7 @@ function Admin() {
       text: messageInput,
       owner_id: localStorage.getItem('user_id'),
       role: 'Admin',
+      IsAdmin: 1,
     };
 
     //Take atention
