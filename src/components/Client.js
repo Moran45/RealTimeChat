@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
-import '../App.css'; // Ajustada la ruta
+import { useWebSocket } from '../WebSocketContext';
+import '../App.css';
 
 function Client() {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [selectedArea, setSelectedArea] = useState(null);
-  const [chatId, setChatId] = useState(null); // Estado para almacenar el chat_id
-  const [showModal, setShowModal] = useState(false); // Estado para controlar la visibilidad del modal
-  const [showQuestions, setShowQuestions] = useState(true); // Estado para mostrar u ocultar las preguntas
-  const [unreadOwnersCount, setUnreadOwnersCount] = useState(0); // Estado para el número de owners con mensajes sin leer
-  const [intervalId, setIntervalId] = useState(null); // Estado para almacenar el ID del intervalo
+  const [chatId, setChatId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(true);
+  const [showChat, setShowChat] = useState(false);
+  const [unreadOwnersCount, setUnreadOwnersCount] = useState(0);
+  const [intervalId, setIntervalId] = useState(null);
   const ws = useWebSocket();
   const messagesEndRef = useRef(null);
 
@@ -50,7 +51,7 @@ function Client() {
       }
     };
 
-    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, [ws, messages, intervalId]);
 
   useEffect(() => {
@@ -63,22 +64,21 @@ function Client() {
       ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
     };
 
-    fetchUnreadOwnersCount(); // Fetch immediately
-    const newIntervalId = setInterval(fetchUnreadOwnersCount, 10000); // Cada 10 segundos
+    fetchUnreadOwnersCount();
+    const newIntervalId = setInterval(fetchUnreadOwnersCount, 10000);
     setIntervalId(newIntervalId);
   };
 
   const handleSelectArea = (areaId, messageText) => {
     const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
-    setMessageInput(messageText); // Colocar el texto en el input del chat
-    setShowQuestions(false); // Ocultar las preguntas
+    setMessageInput(messageText);
+    setShowQuestions(false);
 
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
-
   };
 
   const handleSendMessage = () => {
@@ -86,7 +86,6 @@ function Client() {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-    // Aquí eliminamos la adición del mensaje al estado para evitar duplicación
     const message = {
       type: 'MESSAGE',
       text: messageInput,
@@ -106,16 +105,16 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-  
+
     handleSelectArea(3);
-  
+
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-  
+
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -126,10 +125,10 @@ function Client() {
           user_id: userId,
         }),
       });
-  
-      const text = await response.text(); // Obtén la respuesta como texto primero
-  
-      const data = JSON.parse(text); // Luego intenta convertirla a JSON
+
+      const text = await response.text();
+
+      const data = JSON.parse(text);
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
       } else {
@@ -139,16 +138,15 @@ function Client() {
           text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
           role: 'system',
           timestamp: data.report.timestamp,
-          chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
+          chat_id: chatId,
           owner_id: userId,
         };
-  
-        // Informar al servidor WebSocket del nuevo reporte
+
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
           user_id: userId,
-          chat_id: chatId, // Asegúrate de enviar el chatId correcto al servidor
+          chat_id: chatId,
           owner_id: userId,
         }));
       }
@@ -164,16 +162,16 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-  
-    handleSelectArea(3, 'Reporte: Problema reportado.'); // Usar área 3 como ejemplo
-  
+
+    handleSelectArea(3, 'Reporte: Problema reportado.');
+
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-  
+
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -184,10 +182,10 @@ function Client() {
           user_id: userId,
         }),
       });
-  
-      const text = await response.text(); // Obtén la respuesta como texto primero
-  
-      const data = JSON.parse(text); // Luego intenta convertirla a JSON
+
+      const text = await response.text();
+
+      const data = JSON.parse(text);
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
       } else {
@@ -197,15 +195,15 @@ function Client() {
           text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
           role: 'system',
           timestamp: data.report.timestamp,
-          chat_id: chatId, // Asegúrate de usar el chatId correcto aquí
+          chat_id: chatId,
           owner_id: userId,
         };
-  
+
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
           user_id: userId,
-          chat_id: chatId, // Asegúrate de enviar el chatId correcto al servidor
+          chat_id: chatId,
           owner_id: userId,
           IsAdmin : 0,
         }));
@@ -228,17 +226,21 @@ function Client() {
       setMessages((prevMessages) => [...prevMessages, message]);
     }
   };
-  
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
+  const toggleChat = () => {
+    setShowChat(!showChat);
+  };
+
   return (
     <div className="client-container">
       <div className="chat-window">
-        <h2>Chat {unreadOwnersCount > 0 && `(Personas antes que tu: ${unreadOwnersCount})`}</h2>
+        <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
         <div className="messages">
           {messages.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
