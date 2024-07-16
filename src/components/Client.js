@@ -72,13 +72,25 @@ function Client() {
   const handleSelectArea = (areaId, messageText) => {
     const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
-    setMessageInput(messageText);
     setShowQuestions(false);
 
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
+
+    const message = {
+      type: 'MESSAGE',
+      text: messageText,
+      chat_id: chatId,
+      owner_id: userId,
+    };
+    ws.send(JSON.stringify(message));
+    setMessages((prevMessages) => [...prevMessages, message]);
+
+    if (!intervalId) {
+      startFetchingUnreadOwnersCount();
+    }
   };
 
   const handleSendMessage = () => {
@@ -99,6 +111,12 @@ function Client() {
     }
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+
   const handleReportClick = async () => {
     const userId = localStorage.getItem('user_id');
     if (!ws || !userId) {
@@ -106,7 +124,7 @@ function Client() {
       return;
     }
 
-    handleSelectArea(3);
+    handleSelectArea(3, 'Reporte: Problema reportado.');
 
     setTimeout(() => {
       ws.send(JSON.stringify({
@@ -238,38 +256,50 @@ function Client() {
   };
 
   return (
-    <div className="client-container">
-      <div className="chat-window">
-        <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
-        <div className="messages">
-          {messages.map((msg, index) => (
-            <div key={index} className={`message ${msg.role}`}>
-              <div>{msg.text}</div>
-              <div>{msg.timestamp}</div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="message-input">
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Escribe tu mensaje..."
-          />
-          <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
-        </div>
-        {showQuestions && (
-          <div className="question-buttons mt-3">
-            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(1, 'Problemas con mi cuenta')}>Problemas con mi cuenta</button>
-            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(2, 'Problemas con mi pago')}>Problemas con mi pago</button>
-            <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(3, 'Problemas con la página web')}>Problemas con la página web</button>
+    <div className="Client-container">
+      {!showChat ? (
+        <button className="Client-chat-toggle-button" onClick={toggleChat}>
+          <img src="https://cdn-icons-png.freepik.com/512/5041/5041093.png" alt="Chat Icon" className="Client-chat-icon" />
+        </button>
+      ) : (
+        <div className="Client-chat-window">
+          <button className="Client-chat-close-button" onClick={toggleChat}>
+            <i className="bi bi-x"></i>
+          </button>
+          <h2>Chat {unreadOwnersCount > 0 && `(Lugar en cola aproximado: ${unreadOwnersCount})`}</h2>
+          <div className="Client-messages">
+            {messages.map((msg, index) => (
+              <div key={index} className={`Client-message ${msg.role === 'Admin' ? 'Admin' : 'Cliente'}`}>
+                <div className="Client-message-content">
+                  <div>{msg.text}</div>
+                  <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
           </div>
-        )}
-        <div className="mt-3">
-          <button className="btn btn-warning" onClick={handleReportClick}>Enviar reporte</button>
+          <div className="Client-message-input">
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="Escribe tu mensaje..."
+              className="form-control"
+            />
+            <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
+          </div>
+          {showQuestions && (
+            <div className="Client-question-buttons mt-3">
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(1, 'Problemas con mi cuenta')}>Problemas con mi cuenta</button>
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(2, 'Problemas con mi pago')}>Problemas con mi pago</button>
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(3, 'Problemas con la página web')}>Problemas con la página web</button>
+            </div>
+          )}
+          <div className="mt-3">
+            <button className="btn btn-warning" onClick={handleReportClick}>Enviar reporte</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {showModal && (
         <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ display: 'block' }}>

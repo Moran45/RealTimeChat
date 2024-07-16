@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
-import '../App.css'; // Ajustada la ruta
+import '../admin.css'; // Ajustada la ruta
 
 function Admin() {
   const [chats, setChats] = useState([]);
@@ -14,11 +14,27 @@ function Admin() {
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
+  const [adminArea] = useState(1);
   const ws = useWebSocket();
 
   useEffect(() => {
     if (!ws) return;
-  
+
+    const handleNewMessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'CHATS') {
+        setChats(msg.chats);
+        sortChats(msg.chats, 'desc');
+      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
+        setMessages(msg.messages || []);
+      } else if (msg.type === 'MESSAGE') {
+        setMessages((prev) => [...prev, msg.message]);
+        scrollToBottom();
+      } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
+        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+      }
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'CHATS') {
@@ -26,25 +42,15 @@ function Admin() {
         sortChats(msg.chats, 'desc');
       } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         setMessages(msg.messages);
-      } else if (msg.type === 'MESSAGE') {
+      } else if (msg.type === 'MESSAGE' && selectedChat) {
         setMessages((prev) => [...prev, msg.message]);
-        if (!selectedChat || msg.chat_id !== selectedChat.chat_id) {
-          // Incrementar el contador de mensajes no leídos para el chat correspondiente
-          setChats((prevChats) =>
-            prevChats.map((chat) =>
-              chat.chat_id === msg.chat_id
-                ? { ...chat, unread_count: (chat.unread_count || 0) + 1 }
-                : chat
-            )
-          );
-        }
-      } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
+      } else if (msg.type === 'NEW_CHAT') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       } else if (msg.type === 'CHAT_REDIRECTED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if(msg.type === 'CHAT_DELETED'){
+      } else if (msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      }else if (msg.type === 'NEW_CLIENT') {
+      } else if (msg.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
           if (!prevClients.find(client => client.name === msg.client)) {
             return [...prevClients, { name: msg.client, unreadCount: 0 }];
@@ -62,7 +68,7 @@ function Admin() {
           }
           return updatedMessages;
         });
-  
+
         if (msg.role === 'Cliente') {
           setClients((prevClients) =>
             prevClients.map((client) =>
@@ -74,13 +80,11 @@ function Admin() {
         }
       }
     };
-  
+
     ws.send(JSON.stringify({ type: 'GET_CHATS' }));
   
     return () => {
-      if (ws) {
-        ws.onmessage = null; // Cleanup listener
-      }
+      ws.removeEventListener('message', handleNewMessage);
     };
   }, [ws, selectedChat]);
   
@@ -103,7 +107,6 @@ function Admin() {
     setSelectedChat(chat);
     setShowRedirectButtons(true);
     ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
-    // Marcar mensajes como leídos
     ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
   };
 
@@ -129,61 +132,62 @@ function Admin() {
       return;
     }
 
-    const message = {
+    const message = { 
       type: 'MESSAGE',
       chat_id: selectedChat.chat_id,
       text: messageInput,
       owner_id: localStorage.getItem('user_id'),
       role: 'Admin',
-      IsAdmin: 1,
     };
 
+    //Take atention
     ws.send(JSON.stringify(message));
-    // Marcar mensajes como leídos
-    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: selectedChat.chat_id }));
+    setMessages((prev) => [...prev, message]);
     setMessageInput('');
+    scrollToBottom();
   };
 
   const finalizeReport = () => {
     if (ws && selectedChat) {
       const message = {
-        type: 'MESSAGE',
+        type: 'finalize',
         chat_id: selectedChat.chat_id,
-        text: 'El reporte ha sido finalizado.',
+        text: 'Reporte finalizado',
         owner_id: localStorage.getItem('user_id'),
         role: 'Admin',
-        type: 'finalize'
       };
 
       ws.send(JSON.stringify(message));
+      setMessages((prev) => [...prev, message]);
       setFinalizedChats((prev) => [...prev, selectedChat.chat_id]);
       setShowModal(false);
+      scrollToBottom();
+    }
+  };
 
-      handleRedirectChat(4);
-
-      // Programar la eliminación del chat en 1 minuto
-      setTimeout(() => {
-        ws.send(JSON.stringify({
-          type: 'DELETE_CHAT',
-          chat_id: selectedChat.chat_id
-        }));
-      }, 1 * 60 * 1000); // un minuto
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    scrollToBottom();
   }, [messages]);
+
+  const handleToggleUnreadFilter = () => {
+    setShowUnreadOnly(!showUnreadOnly);
+  };
 
   const handleSortChats = () => {
     sortChats(chats, sortOrder === 'desc' ? 'asc' : 'desc');
   };
 
-  const handleToggleUnreadFilter = () => {
-    setShowUnreadOnly(!showUnreadOnly);
+  const getRedirectOptions = () => {
+    const areas = [1, 2, 3];
+    return areas.filter(area => area !== adminArea);
   };
+
 
   return (
     <div className="admin-container">
@@ -203,7 +207,10 @@ function Admin() {
           </button>
           {chats.filter(chat => !showUnreadOnly || chat.unread_count > 0).map((chat, index) => (
             <div key={index} onClick={() => handleSelectChat(chat)} className={`admin-chat-item p-2 mb-2 ${selectedChat?.chat_id === chat.chat_id ? 'bg-info text-white' : 'bg-light'}`}>
-              <div>{chat.user_name} - {chat.unread_count} no leídos</div>
+              <div className="d-flex justify-content-between align-items-center">
+                <div>{chat.user_name} - {chat.unread_count} no leídos</div>
+                {chat.unread_count > 0 && <div className="unread-indicator"></div>}
+              </div>
             </div>
           ))}
         </div>
@@ -213,19 +220,32 @@ function Admin() {
               <div className="d-flex justify-content-between mb-3">
                 <h3>Chat con {selectedChat.user_name}</h3>
                 {showRedirectButtons && (
-                  <div>
-                    <button className="btn btn-secondary me-2" onClick={() => handleRedirectChat(2)}>Redirigir a área 2</button>
-                    <button className="btn btn-secondary" onClick={() => handleRedirectChat(3)}>Redirigir a área 3</button>
+                  <div className='div-btn'>
+                    {getRedirectOptions().map(area => (
+                      <button
+                        key={area}
+                        className="btn btn-secondary me-2"
+                        onClick={() => handleRedirectChat(area)}
+                      >
+                        Redirigir a área {area}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
                 {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`admin-message ${msg.role === 'Admin' ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
-                  >
-                    <strong>{msg.role === 'Admin' ? 'A' : selectedChat.user_name}:</strong> {msg.text}
+                  <div key={index} className={`message-container ${msg.role === 'Admin' ? 'admin-message-container' : ''}`}>
+                    <div
+                      className={`admin-message ${msg.role === 'Admin' ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
+                    >
+                      <strong>{msg.role === 'Admin' ? 'Admin' : 'Cliente'}:</strong> {msg.text}
+                    </div>
+                    {msg.type === 'finalize' && (
+                      <div className="admin-message-separator">
+                        <strong>Reporte finalizado</strong>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
@@ -237,10 +257,11 @@ function Admin() {
                   placeholder="Escribe tu mensaje..."
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  disabled={finalizedChats.includes(selectedChat.chat_id)}
+                  onKeyPress={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
+                  disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}
                 />
-                <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={finalizedChats.includes(selectedChat.chat_id)}>Enviar</button>
-                <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={finalizedChats.includes(selectedChat.chat_id)}>Finalizar Reporte</button>
+                <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}>Enviar</button>
+                <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}>Finalizar Reporte</button>
               </div>
             </>
           ) : (
