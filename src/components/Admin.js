@@ -87,7 +87,6 @@ function Admin() {
       ws.removeEventListener('message', handleNewMessage);
     };
   }, [ws, selectedChat]);
-  
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
@@ -141,7 +140,6 @@ function Admin() {
       IsAdmin: 1,
     };
 
-    //Take atention
     ws.send(JSON.stringify(message));
     setMessages((prev) => [...prev, message]);
     setMessageInput('');
@@ -189,6 +187,7 @@ function Admin() {
     return areas.filter(area => area !== adminArea);
   };
 
+  const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
   return (
     <div className="admin-container">
@@ -259,10 +258,10 @@ function Admin() {
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyPress={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
-                  disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}
+                  disabled={isChatFinalized(selectedChat.chat_id)}
                 />
-                <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}>Enviar</button>
-                <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={Array.isArray(messages) && finalizedChats.includes(selectedChat.chat_id) && !messages.some((msg) => msg.role === 'Cliente')}>Finalizar Reporte</button>
+                <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={isChatFinalized(selectedChat.chat_id)}>Enviar</button>
+                <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isChatFinalized(selectedChat.chat_id)}>Finalizar Reporte</button>
               </div>
             </>
           ) : (
