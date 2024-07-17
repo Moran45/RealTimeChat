@@ -64,18 +64,6 @@
   flex-direction: column;
 }
 
-.Client-message.Admin {
-  background-color: #28a745;
-  color: white;
-  align-self: flex-end;
-}
-
-.Client-message.Cliente {
-  background-color: #007bff;
-  color: white;
-  align-self: flex-start;
-}
-
 .Client-message-content {
   display: flex;
   justify-content: space-between;
@@ -126,4 +114,19 @@
 
 .modal-backdrop.show {
   opacity: 0.5;
+}
+
+/* Specific styles for messages */
+.Client-message.Client {
+  background-color: #007bff !important;
+  color: white !important;
+  align-self: flex-end;
+  text-align: right;
+}
+
+.Client-message.Admin {
+  background-color: #28a745 !important;
+  color: white !important;
+  align-self: flex-start;
+  text-align: left;
 }

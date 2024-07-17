@@ -116,9 +116,11 @@ function Client() {
       text: messageInput,
       chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
+      IsAdmin: 0
     };
     ws.send(JSON.stringify(message));
     setMessageInput('');
+    setMessages((prevMessages) => [...prevMessages, message]);
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
@@ -228,6 +230,7 @@ function Client() {
           timestamp: data.report.timestamp,
           chat_id: chatId,
           owner_id: userId,
+          IsAdmin: 0,
         };
 
         ws.send(JSON.stringify({
@@ -236,7 +239,7 @@ function Client() {
           user_id: userId,
           chat_id: chatId,
           owner_id: userId,
-          IsAdmin : 0,
+          IsAdmin: 0,
         }));
       }
     } catch (error) {
@@ -276,7 +279,7 @@ function Client() {
           <h2>Chat {unreadOwnersCount > 0 && `Lugar en cola aproximado: ${unreadOwnersCount}`}</h2>
           <div className="Client-messages">
             {messages.map((msg, index) => (
-              <div key={index} className={`Client-message ${msg.role === 'Admin' ? 'Admin' : 'Cliente'}`}>
+              <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'}`}>
                 <div className="Client-message-content">
                   <div>{msg.text}</div>
                   <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
@@ -292,6 +295,7 @@ function Client() {
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder="Escribe tu mensaje..."
               className="form-control"
+              onKeyPress={handleKeyPress}
             />
             <button className="btn btn-success" onClick={handleSendMessage}>Enviar</button>
           </div>
