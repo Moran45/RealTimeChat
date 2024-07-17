@@ -103,13 +103,17 @@ function Client() {
       text: messageInput,
       chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
+      IsAdmin: 0
     };
     ws.send(JSON.stringify(message));
+    setMessages((prevMessages) => [...prevMessages, message]);
+    setUnreadOwnersCount((prevCount) => prevCount + 1); // Actualizar el conteo de mensajes no leídos
     setMessageInput('');
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
   };
+  
 
   const handleKeyPress = (event) => {
     if (event.key === 'Enter') {
