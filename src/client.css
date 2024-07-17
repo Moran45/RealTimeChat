@@ -1,0 +1,129 @@
+/* Import Bootstrap */
+@import url('https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css');
+
+/* Client-specific styles */
+.Client-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.Client-chat-toggle-button {
+  background-color: #007bff;
+  border: none;
+  cursor: pointer;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.Client-chat-icon {
+  width: 70%;
+  height: 70%;
+}
+
+.Client-chat-window {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+  margin: auto;
+  position: relative;
+}
+
+.Client-chat-close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+}
+
+.Client-messages {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.Client-message {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.Client-message.Admin {
+  background-color: #28a745;
+  color: white;
+  align-self: flex-end;
+}
+
+.Client-message.Cliente {
+  background-color: #007bff;
+  color: white;
+  align-self: flex-start;
+}
+
+.Client-message-content {
+  display: flex;
+  justify-content: space-between;
+}
+
+.Client-message-timestamp {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  align-self: flex-end;
+}
+
+.Client-message-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.Client-message-input input {
+  flex-grow: 1;
+  padding: 10px;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.Client-message-input button {
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+.Client-question-buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.Client-question-buttons .btn {
+  margin-bottom: 10px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+}
+
+.modal-backdrop.show {
+  opacity: 0.5;
+}
