@@ -97,6 +97,7 @@ function Client() {
       text: messageText,
       chat_id: chatId,
       owner_id: userId,
+      IsAdmin: 0
     };
     ws.send(JSON.stringify(message));
     setMessages((prevMessages) => [...prevMessages, message]);
@@ -111,6 +112,8 @@ function Client() {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
+    
+    // Evitar enviar el mensaje dos veces
     const message = {
       type: 'MESSAGE',
       text: messageInput,
@@ -118,9 +121,9 @@ function Client() {
       owner_id: localStorage.getItem('user_id'),
       IsAdmin: 0
     };
-    ws.send(JSON.stringify(message));
+    ws.send(JSON.stringify(message));  //aqui es donde se envia el mensaje y se muestra en pantalla
     setMessageInput('');
-    setMessages((prevMessages) => [...prevMessages, message]);
+    
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
