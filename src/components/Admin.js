@@ -141,6 +141,7 @@ function Admin() {
     };
 
     ws.send(JSON.stringify(message));
+    setMessages((prev) => [...prev, message]);
     setMessageInput('');
     scrollToBottom();
   };
@@ -234,7 +235,7 @@ function Admin() {
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
                 {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.role === 'Admin' ? 'admin-message-container' : 'admin-message-client'}`}>
+                  <div key={index} className={`message-container ${msg.role === 'Admin' ? 'admin-message-container' : ''}`}>
                     <div
                       className={`admin-message ${msg.role === 'Admin' ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
                     >
