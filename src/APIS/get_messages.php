@@ -15,7 +15,7 @@ include 'db.php';
 
 $chat_id = $_GET['chat_id'];
 
-$sql = "SELECT m.text, m.timestamp, 
+$sql = "SELECT m.text, m.IsAdmin, m.timestamp, 
                IF(m.owner_id = c.user_id, 'Cliente', 'Admin') as role 
         FROM message m 
         JOIN chats c ON m.chat_id = c.id 

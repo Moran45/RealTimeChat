@@ -37,6 +37,7 @@ function Admin() {
 
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
+      console.log('Received message:', msg);
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
@@ -141,7 +142,8 @@ function Admin() {
     };
 
     ws.send(JSON.stringify(message));
-    setMessages((prev) => [...prev, message]);
+    console.log('Received message:', message);
+    
     setMessageInput('');
     scrollToBottom();
   };
@@ -153,6 +155,7 @@ function Admin() {
         chat_id: selectedChat.chat_id,
         text: 'Reporte finalizado',
         owner_id: localStorage.getItem('user_id'),
+        IsAdmin : 1,
         role: 'Admin',
       };
 
@@ -235,11 +238,11 @@ function Admin() {
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
                 {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.role === 'Admin' ? 'admin-message-container' : ''}`}>
+                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
                     <div
-                      className={`admin-message ${msg.role === 'Admin' ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
+                      className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
                     >
-                      <strong>{msg.role === 'Admin' ? 'Admin' : 'Cliente'}:</strong> {msg.text}
+                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
                     </div>
                     {msg.type === 'finalize' && (
                       <div className="admin-message-separator">

@@ -45,7 +45,7 @@ while ($row = $result->fetch_assoc()) {
     $chat_id = $row['chat_id'];
     
     // Obtener los mensajes del chat
-    $messages_sql = "SELECT m.text, m.timestamp, m.status, 
+    $messages_sql = "SELECT m.text, m.timestamp, m.status, m.IsAdmin,
                             IF(m.owner_id = u.id, 'Cliente', 'Admin') as role 
                      FROM message m 
                      JOIN users u ON m.owner_id = u.id 
