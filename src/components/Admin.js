@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
 import '../admin.css'; // Ajustada la ruta
+import Login from './Login';
 
 function Admin() {
   const [chats, setChats] = useState([]);
@@ -14,12 +15,18 @@ function Admin() {
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
-  const [adminArea] = useState(1);
+  const [currentAdminArea, setCurrentAdminArea] = useState(() => {
+    const storedArea = localStorage.getItem('area_id');
+    return storedArea ? parseInt(storedArea, 10) : 1; // Usa 1 como valor por defecto si no hay área almacenada
+  });
   const ws = useWebSocket();
 
   useEffect(() => {
     if (!ws) return;
-
+    const adminArea = localStorage.getItem('area_id');
+    if (adminArea) {
+      setCurrentAdminArea(parseInt(adminArea, 10));
+    }
     const handleNewMessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'CHATS') {
@@ -142,7 +149,7 @@ function Admin() {
     };
 
     ws.send(JSON.stringify(message));
-    console.log('Received message:', message);
+    console.log('Sent message:', message);
     
     setMessageInput('');
     scrollToBottom();
@@ -186,8 +193,8 @@ function Admin() {
   };
 
   const getRedirectOptions = () => {
-    const areas = [1, 2, 3];
-    return areas.filter(area => area !== adminArea);
+    const allAreas = [1, 2, 3];
+    return allAreas.filter(area => area !== currentAdminArea);
   };
 
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);

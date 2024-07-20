@@ -27,6 +27,8 @@ function Login() {
           console.log('Setting user_id:', msg.user_id);
           localStorage.setItem('user_id', msg.user_id);
           if (msg.role === 'admin') {
+            console.log('area_id',msg.area_id)
+            localStorage.setItem('area_id', msg.area_id);
             navigate('/admin');
           } else if (msg.role === 'client') {
             navigate('/client');

@@ -82,30 +82,37 @@ function Client() {
     setIntervalId(newIntervalId);
   };
 
-  const handleSelectArea = (areaId, messageText) => {
+  const handleSelectArea = (areaId, areaText) => {
     const userId = localStorage.getItem('user_id');
     setSelectedArea(areaId);
     setShowQuestions(false);
-
+  
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
-
+  
+    // Enviar mensaje al chat sobre la selección del área
     const message = {
       type: 'MESSAGE',
-      text: messageText,
+      text: `Área seleccionada: ${areaText}`,
       chat_id: chatId,
       owner_id: userId,
-      IsAdmin: 0
+      IsAdmin: 0,
+      timestamp: new Date().toISOString()
     };
+    
+    // Enviar mensaje al servidor
     ws.send(JSON.stringify(message));
+    
+    // Actualizar estado local de mensajes
     setMessages((prevMessages) => [...prevMessages, message]);
-
+  
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
   };
+  
 
   const handleSendMessage = () => {
     if (!ws || !selectedArea) {
@@ -141,16 +148,30 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-
-    handleSelectArea(3, 'Reporte: Problema reportado.');
-
+  
+    // Verificar si el área ya está seleccionada
+    if (selectedArea === null) {
+      handleSelectArea(3, 'Reporte realizado con éxito');
+    } else {
+      // Mostrar un mensaje en el chat de que el reporte se está realizando sin cambiar el área
+      const message = {
+        type: 'MESSAGE',
+        text: 'Reporte realizado con éxito',
+        chat_id: chatId,
+        owner_id: userId,
+        IsAdmin: 0,
+        timestamp: new Date().toISOString()
+      };
+      ws.send(JSON.stringify(message));
+    }
+  
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-
+  
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -161,10 +182,10 @@ function Client() {
           user_id: userId,
         }),
       });
-
+  
       const text = await response.text();
       const data = JSON.parse(text);
-
+  
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
       } else {
@@ -177,78 +198,21 @@ function Client() {
           chat_id: chatId,
           owner_id: userId,
         };
-
+  
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
-          user_id: userId,
-          chat_id: chatId,
-          owner_id: userId,
-        }));
-      }
-    } catch (error) {
-      console.error('Error al ejecutar la API de hacer_reporte:', error);
-    }
-  };
-
-  const confirmReport = async () => {
-    setShowModal(false);
-    const userId = localStorage.getItem('user_id');
-    if (!ws || !userId) {
-      alert('WebSocket connection not established or user_id not found.');
-      return;
-    }
-
-    handleSelectArea(3, 'Reporte: Problema reportado.');
-
-    setTimeout(() => {
-      ws.send(JSON.stringify({
-        type: 'START_CHAT',
-        user_id: userId,
-      }));
-    }, 500);
-
-    try {
-      const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          user_id: userId,
-        }),
-      });
-
-      const text = await response.text();
-      const data = JSON.parse(text);
-
-      if (data.error) {
-        console.error('Error al hacer el reporte:', data.error);
-      } else {
-        console.log('Reporte realizado con éxito:', data);
-        const reportMessage = {
-          type: 'MESSAGE',
-          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
-          role: 'system',
           timestamp: data.report.timestamp,
-          chat_id: chatId,
-          owner_id: userId,
-          IsAdmin: 0,
-        };
-
-        ws.send(JSON.stringify({
-          type: 'REPORT_MESSAGE',
-          message: reportMessage,
           user_id: userId,
           chat_id: chatId,
           owner_id: userId,
-          IsAdmin: 0,
         }));
       }
     } catch (error) {
       console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
-  };
+  };  
+
 
   const sendMessage = (text) => {
     if (text.trim() !== '' && ws && chatId) {
@@ -314,29 +278,6 @@ function Client() {
           </div>
         </div>
       )}
-
-      {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ display: 'block' }}>
-          <div className="modal-dialog" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Confirmar Envío de Reporte</h5>
-                <button type="button" className="close" onClick={() => setShowModal(false)} aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div className="modal-body">
-                ¿Estás seguro de que deseas enviar este reporte?
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                <button type="button" className="btn btn-danger" onClick={confirmReport}>Confirmar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {showModal && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 }
