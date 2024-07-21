@@ -8,7 +8,7 @@ const MESSAGE_TYPES = {
   MESSAGE: 'MESSAGE',
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
-  GET_CHATS: 'GET_CHATS',
+  GET_CHATS: 'GET_CHATS', //obtener chats
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -332,27 +332,6 @@ async function handleGetChats2(area_id) {
     });
   } catch (error) {
     console.error('Error fetching chats:', error);
-  }
-}
-
-async function notifyAdminsNewUnreadMessage(area_id) {
-  try {
-    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-    
-    const unreadCount = await response.json();
-    console.log('Sending UNREAD_COUNT_UPDATE:', { area_id}); // Añade esta línea
-
-    webSocketServer.connections.forEach((conn) => {
-      if (conn.role === 'admin' && conn.area_id === area_id) {
-        conn.sendUTF(JSON.stringify({ 
-          type: 'UNREAD_COUNT_UPDATE', 
-          area_id: area_id
-        }));
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching unread count:', error);
   }
 }
 

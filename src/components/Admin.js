@@ -41,7 +41,7 @@ function Admin() {
     if (storedUser.user_id && storedUser.area_id) {
       setUser(storedUser);
     } else {
-      navigate('/login'); // Redirigir al login si no hay información de usuario
+      navigate('/'); // Redirigir al login si no hay información de usuario
     }
     const handleNewMessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -75,15 +75,6 @@ function Admin() {
         setMessages((prev) => [...prev, msg.message]);
       } else if (msg.type === 'NEW_CHAT') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      }else if (msg.type === 'UNREAD_COUNT_UPDATE') {
-        console.log('Received UNREAD_COUNT_UPDATE:', msg); // Añade esta línea
-        setChats((prevChats) => 
-          prevChats.map((chat) => 
-            chat.area_id === msg.area_id 
-              ? { ...chat, unread_count: msg.count } 
-              : chat
-          )
-        );
       }else if (msg.type === 'CHAT_REDIRECTED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       } else if (msg.type === 'CHAT_DELETED') {
