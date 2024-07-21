@@ -99,12 +99,12 @@ function Client() {
       chat_id: chatId,
       owner_id: userId,
       IsAdmin: 0,
+      area_id : selectedArea,
       timestamp: new Date().toISOString()
     };
     
     // Enviar mensaje al servidor
     ws.send(JSON.stringify(message));
-    
     // Actualizar estado local de mensajes
     setMessages((prevMessages) => [...prevMessages, message]);
   
@@ -126,6 +126,7 @@ function Client() {
       text: messageInput,
       chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
+      area_id : selectedArea,
       IsAdmin: 0
     };
     ws.send(JSON.stringify(message));  //aqui es donde se envia el mensaje y se muestra en pantalla
@@ -160,6 +161,7 @@ function Client() {
         chat_id: chatId,
         owner_id: userId,
         IsAdmin: 0,
+        area_id : selectedArea,
         timestamp: new Date().toISOString()
       };
       ws.send(JSON.stringify(message));
@@ -196,6 +198,7 @@ function Client() {
           role: 'system',
           timestamp: data.report.timestamp,
           chat_id: chatId,
+          area_id : selectedArea,
           owner_id: userId,
         };
   
@@ -205,6 +208,7 @@ function Client() {
           timestamp: data.report.timestamp,
           user_id: userId,
           chat_id: chatId,
+          area_id : selectedArea,
           owner_id: userId,
         }));
       }
@@ -212,21 +216,6 @@ function Client() {
       console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
   };  
-
-
-  const sendMessage = (text) => {
-    if (text.trim() !== '' && ws && chatId) {
-      const message = {
-        type: 'MESSAGE',
-        text: text,
-        chat_id: chatId,
-        owner_id: localStorage.getItem('user_id'),
-        IsAdmin: 0
-      };
-      ws.send(JSON.stringify(message));
-      setMessages((prevMessages) => [...prevMessages, message]);
-    }
-  };
 
   const toggleChat = () => {
     setShowChat(!showChat);

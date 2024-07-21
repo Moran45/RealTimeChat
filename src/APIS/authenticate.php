@@ -16,7 +16,7 @@ include 'db.php';
 $email_or_name = $_POST['email_or_name'];
 
 // Consultar si es admin
-$sql = "SELECT id, area_id FROM admin WHERE email = ? OR name = ?";
+$sql = "SELECT id, area_id, name FROM admin WHERE email = ? OR name = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("ss", $email_or_name, $email_or_name);
 $stmt->execute();
@@ -24,7 +24,7 @@ $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
-    echo json_encode(['role' => 'admin', 'area_id' => $row['area_id'], 'user_id' => $row['id']]);
+    echo json_encode(['role' => 'admin', 'area_id' => $row['area_id'], 'user_id' => $row['id'] , 'name' => $row['name']]);
     exit;
 }
 

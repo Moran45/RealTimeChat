@@ -2,9 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
 import '../admin.css'; // Ajustada la ruta
 import Login from './Login';
+import { useNavigate } from 'react-router-dom';
 
 function Admin() {
   const [chats, setChats] = useState([]);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+  const [wsReady, setWsReady] = useState(false);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]); // Similar a Client.js
@@ -19,13 +23,25 @@ function Admin() {
     const storedArea = localStorage.getItem('area_id');
     return storedArea ? parseInt(storedArea, 10) : 1; // Usa 1 como valor por defecto si no hay área almacenada
   });
-  const ws = useWebSocket();
+  const ws = useWebSocket();  
 
   useEffect(() => {
     if (!ws) return;
     const adminArea = localStorage.getItem('area_id');
     if (adminArea) {
       setCurrentAdminArea(parseInt(adminArea, 10));
+    }
+    const storedUser = {
+      user_id: localStorage.getItem('user_id'),
+      area_id: localStorage.getItem('area_id'),
+      role: 'admin', // Asumiendo que solo los admins llegan a esta página
+      name: localStorage.getItem('name')
+    };
+
+    if (storedUser.user_id && storedUser.area_id) {
+      setUser(storedUser);
+    } else {
+      navigate('/login'); // Redirigir al login si no hay información de usuario
     }
     const handleNewMessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -42,6 +58,11 @@ function Admin() {
       }
     };
 
+    ws.onclose = () => {
+      setWsReady(false);
+      console.log('WebSocket connection closed.');
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log('Received message:', msg);
@@ -54,7 +75,16 @@ function Admin() {
         setMessages((prev) => [...prev, msg.message]);
       } else if (msg.type === 'NEW_CHAT') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'CHAT_REDIRECTED') {
+      }else if (msg.type === 'UNREAD_COUNT_UPDATE') {
+        console.log('Received UNREAD_COUNT_UPDATE:', msg); // Añade esta línea
+        setChats((prevChats) => 
+          prevChats.map((chat) => 
+            chat.area_id === msg.area_id 
+              ? { ...chat, unread_count: msg.count } 
+              : chat
+          )
+        );
+      }else if (msg.type === 'CHAT_REDIRECTED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       } else if (msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
@@ -95,6 +125,7 @@ function Admin() {
       ws.removeEventListener('message', handleNewMessage);
     };
   }, [ws, selectedChat]);
+  
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
@@ -109,6 +140,15 @@ function Admin() {
     setChats([...sortedChats, ...unchangedChats]);
     setSortOrder(order);
   };
+
+
+  
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) setUser(JSON.parse(storedUser));
+    else navigate('/login');
+  }, [navigate]);
+  
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
@@ -199,7 +239,7 @@ function Admin() {
 
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
-  return (
+ return (
     <div className="admin-container">
       <div className="admin-header bg-primary text-white p-3">
         <h2>Chats</h2>

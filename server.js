@@ -109,10 +109,11 @@ async function handleLogin(connection, msg) {
 
     connection.role = authData.role;
     connection.user_id = authData.user_id;
+    connection.name = authData.name
 
     if (authData.role === 'admin') {
       connection.area_id = authData.area_id;
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id}));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name}));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
       connection.sendUTF(JSON.stringify({
@@ -209,8 +210,17 @@ async function handleMessage(connection, msg) {
         conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
       }
     });
+
+    // Verificamos si el mensaje es de un cliente (IsAdmin === 0) y si tiene area_id
+    if (msg.IsAdmin === 0) {
+      console.log('Notifying admins for area:', msg.area_id);
+      await handleGetChats2(msg.area_id);
+    } else if (msg.IsAdmin === 0 && !msg.area_id) {
+      console.warn('Message from client does not have area_id:', msg);
+    }
+
   } catch (error) {
-    console.error('Error saving message:', error);
+    console.error('Error in handleMessage:', error);
   }
 }
 
@@ -274,9 +284,12 @@ async function handleRedirectChat(connection, msg) {
 }
 
 async function handleGetChats(connection) {
-  if (connection.role !== 'admin') return;
-  console.log('Processing GET_CHATS:');
-
+  console.log('handleGetChats called for user:', connection.user_id);
+  if (connection.role !== 'admin') {
+    console.log('User is not admin, aborting GET_CHATS');
+    return;
+  }
+  console.log('Processing GET_CHATS for area_id:', connection.area_id);
   try {
     const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}`);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -301,6 +314,45 @@ async function handleGetChatMessages(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'CHAT_MESSAGES', chat_id: msg.chat_id, messages }));
   } catch (error) {
     console.error('Error fetching chat messages:', error);
+  }
+}
+
+async function handleGetChats2(area_id) {
+  console.log('Processing GET_CHATS for area_id:', area_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}`);
+    console.log("api get chats");
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.role === 'admin' && conn.area_id === area_id) {
+        conn.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
+async function notifyAdminsNewUnreadMessage(area_id) {
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+    
+    const unreadCount = await response.json();
+    console.log('Sending UNREAD_COUNT_UPDATE:', { area_id}); // Añade esta línea
+
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.role === 'admin' && conn.area_id === area_id) {
+        conn.sendUTF(JSON.stringify({ 
+          type: 'UNREAD_COUNT_UPDATE', 
+          area_id: area_id
+        }));
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
   }
 }
 
