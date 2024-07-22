@@ -122,7 +122,7 @@ async function handleLogin(connection, msg) {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
-        message: 'Bienvenido! ¿Qué problema tienes? Selecciona el número correspondiente: \n1. Area 1 \n2. Area 2 \n3. Area 3',
+        message: 'Bienvenido! ¿Qué problema tienes? ',
       }));
     } else {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));

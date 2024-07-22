@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext';
-import '../App.css';
+import '../client.css';
 
 function Client() {
   const [messages, setMessages] = useState([]);

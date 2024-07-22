@@ -305,22 +305,21 @@ function Admin() {
                 )}
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
-                {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-                    <div
-                      className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}
-                    >
-                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
-                    </div>
-                    {msg.type === 'finalize' && (
-                      <div className="admin-message-separator">
-                        <strong>Reporte finalizado</strong>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+  {Array.isArray(messages) && messages.map((msg, index) => (
+    <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
+      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
+        <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
+      </div>
+      {msg.type === 'finalize' && (
+        <div className="admin-message-separator">
+          <strong>Reporte finalizado</strong>
+        </div>
+      )}
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
+
               <div className="admin-chat-input d-flex align-items-center">
                 <input
                   type="text"
