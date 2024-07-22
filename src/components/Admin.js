@@ -260,10 +260,6 @@ function Admin() {
     <div className="admin-container">
       <div className="admin-header bg-primary text-white p-3">
         <h2>Chats</h2>
-        {user && <p>Logged in as: {user.user_id}</p>}
-      {user && <p>area is: {user.area_id}</p>}
-      {user && <p>role: {user.role}</p>}
-      {user && <p>name: {user.name}</p>}
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
