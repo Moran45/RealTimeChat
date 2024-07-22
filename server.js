@@ -9,6 +9,7 @@ const MESSAGE_TYPES = {
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS', //obtener chats
+  GET_CHATS2:'GET_CHATS', //obtener chats
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -68,6 +69,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.GET_CHATS:
           await handleGetChats(connection);
           break;
+          case MESSAGE_TYPES.GET_CHATS2:
+            await handleGetChats2(msg.area_id);
+            break;
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -109,11 +113,11 @@ async function handleLogin(connection, msg) {
 
     connection.role = authData.role;
     connection.user_id = authData.user_id;
-    connection.name = authData.name
+    connection.name = authData.name;
+    connection.area_id = authData.area_id;
 
     if (authData.role === 'admin') {
-      connection.area_id = authData.area_id;
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name}));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name }));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
       connection.sendUTF(JSON.stringify({
@@ -128,6 +132,8 @@ async function handleLogin(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
   }
 }
+
+
 
 async function handleSelectArea(connection, msg) {
   if (connection.role !== 'client') return;
@@ -334,6 +340,7 @@ async function handleGetChats2(area_id) {
     console.error('Error fetching chats:', error);
   }
 }
+
 
 async function handleMarkAsRead(msg) {
   console.log('Processing MARK_AS_READ:', msg);

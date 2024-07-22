@@ -26,23 +26,28 @@ function Admin() {
   const ws = useWebSocket();  
 
   useEffect(() => {
-    if (!ws) return;
-    const adminArea = localStorage.getItem('area_id');
-    if (adminArea) {
-      setCurrentAdminArea(parseInt(adminArea, 10));
-    }
     const storedUser = {
       user_id: localStorage.getItem('user_id'),
       area_id: localStorage.getItem('area_id'),
       role: 'admin', // Asumiendo que solo los admins llegan a esta página
-      name: localStorage.getItem('name')
+      name: localStorage.getItem('name'),
+      email_or_name: localStorage.getItem('name')
     };
-
+  
     if (storedUser.user_id && storedUser.area_id) {
       setUser(storedUser);
+      if (ws) {
+        handleLogin(storedUser);
+      }
     } else {
       navigate('/'); // Redirigir al login si no hay información de usuario
     }
+  }, [ws, navigate]);
+  
+
+  useEffect(() => {
+    if (!ws) return;
+
     const handleNewMessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'CHATS') {
@@ -117,6 +122,27 @@ function Admin() {
     };
   }, [ws, selectedChat]);
   
+  const handleLogin = (storedUser) => {
+    const handleLoginResponse = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'LOGIN_SUCCESS') {
+        ws.send(JSON.stringify({
+          type: 'GET_CHATS'
+        }));
+        ws.removeEventListener('message', handleLoginResponse);
+      } else if (msg.type === 'LOGIN_FAILURE') {
+        navigate('/'); // Redirigir al login si el login falla
+        ws.removeEventListener('message', handleLoginResponse);
+      }
+    };
+
+    ws.addEventListener('message', handleLoginResponse);
+
+    ws.send(JSON.stringify({
+      type: 'LOGIN',
+      ...storedUser
+    }));
+  };
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
@@ -137,7 +163,7 @@ function Admin() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) setUser(JSON.parse(storedUser));
-    else navigate('/login');
+    else navigate('/');
   }, [navigate]);
   
 
@@ -234,6 +260,10 @@ function Admin() {
     <div className="admin-container">
       <div className="admin-header bg-primary text-white p-3">
         <h2>Chats</h2>
+        {user && <p>Logged in as: {user.user_id}</p>}
+      {user && <p>area is: {user.area_id}</p>}
+      {user && <p>role: {user.role}</p>}
+      {user && <p>name: {user.name}</p>}
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
@@ -336,3 +366,5 @@ function Admin() {
 }
 
 export default Admin;
+
+//
