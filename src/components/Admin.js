@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
 import '../admin.css'; // Ajustada la ruta
-import Login from './Login';
 import { useNavigate } from 'react-router-dom';
 
 function Admin() {
   const [chats, setChats] = useState([]);
   const [user, setUser] = useState(null);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const navigate = useNavigate();
   const [wsReady, setWsReady] = useState(false);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -31,7 +31,8 @@ function Admin() {
       area_id: localStorage.getItem('area_id'),
       role: 'admin', // Asumiendo que solo los admins llegan a esta página
       name: localStorage.getItem('name'),
-      email_or_name: localStorage.getItem('name')
+      email_or_name: localStorage.getItem('name'),
+      type_admin: localStorage.getItem('type_admin')
     };
   
     if (storedUser.user_id && storedUser.area_id) {
@@ -39,11 +40,36 @@ function Admin() {
       if (ws) {
         handleLogin(storedUser);
       }
+      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: ${storedUser.type_admin}`);
     } else {
       navigate('/'); // Redirigir al login si no hay información de usuario
     }
   }, [ws, navigate]);
   
+  const handleLogin = (storedUser) => {
+    const handleLoginResponse = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'LOGIN_SUCCESS') {
+        // Store additional data
+        localStorage.setItem('type_admin', msg.type_admin);
+
+        ws.send(JSON.stringify({
+          type: 'GET_CHATS'
+        }));
+        ws.removeEventListener('message', handleLoginResponse);
+      } else if (msg.type === 'LOGIN_FAILURE') {
+        navigate('/'); // Redirigir al login si el login falla
+        ws.removeEventListener('message', handleLoginResponse);
+      }
+    };
+
+    ws.addEventListener('message', handleLoginResponse);
+
+    ws.send(JSON.stringify({
+      type: 'LOGIN',
+      ...storedUser
+    }));
+  };
 
   useEffect(() => {
     if (!ws) return;
@@ -121,28 +147,6 @@ function Admin() {
       ws.removeEventListener('message', handleNewMessage);
     };
   }, [ws, selectedChat]);
-  
-  const handleLogin = (storedUser) => {
-    const handleLoginResponse = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'LOGIN_SUCCESS') {
-        ws.send(JSON.stringify({
-          type: 'GET_CHATS'
-        }));
-        ws.removeEventListener('message', handleLoginResponse);
-      } else if (msg.type === 'LOGIN_FAILURE') {
-        navigate('/'); // Redirigir al login si el login falla
-        ws.removeEventListener('message', handleLoginResponse);
-      }
-    };
-
-    ws.addEventListener('message', handleLoginResponse);
-
-    ws.send(JSON.stringify({
-      type: 'LOGIN',
-      ...storedUser
-    }));
-  };
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
@@ -158,12 +162,10 @@ function Admin() {
     setSortOrder(order);
   };
 
-
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) setUser(JSON.parse(storedUser));
   }, [navigate]);
-  
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
@@ -254,10 +256,11 @@ function Admin() {
 
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
- return (
+  return (
     <div className="admin-container">
       <div className="admin-header bg-primary text-white p-3">
         <h2>Chats</h2>
+        <p>{welcomeMessage}</p>
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
@@ -299,21 +302,20 @@ function Admin() {
                 )}
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
-  {Array.isArray(messages) && messages.map((msg, index) => (
-    <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
-        <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
-      </div>
-      {msg.type === 'finalize' && (
-        <div className="admin-message-separator">
-          <strong>Reporte finalizado</strong>
-        </div>
-      )}
-    </div>
-  ))}
-  <div ref={messagesEndRef} />
-</div>
-
+                {Array.isArray(messages) && messages.map((msg, index) => (
+                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
+                    <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
+                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
+                    </div>
+                    {msg.type === 'finalize' && (
+                      <div className="admin-message-separator">
+                        <strong>Reporte finalizado</strong>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
               <div className="admin-chat-input d-flex align-items-center">
                 <input
                   type="text"
@@ -359,5 +361,3 @@ function Admin() {
 }
 
 export default Admin;
-
-//

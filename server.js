@@ -130,9 +130,17 @@ async function handleLogin(connection, msg) {
     connection.user_id = authData.user_id;
     connection.name = authData.name;
     connection.area_id = authData.area_id;
+    connection.type_admin = authData.type_admin; // Ensure type_admin is included
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, area_id: authData.area_id, name: authData.name }));
+      connection.sendUTF(JSON.stringify({
+        type: 'LOGIN_SUCCESS',
+        role: 'admin',
+        user_id: authData.user_id,
+        area_id: authData.area_id,
+        name: authData.name,
+        type_admin: authData.type_admin // Include type_admin in the response
+      }));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id }));
       connection.sendUTF(JSON.stringify({
@@ -147,6 +155,7 @@ async function handleLogin(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
   }
 }
+
 
 
 
