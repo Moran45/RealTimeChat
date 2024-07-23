@@ -8,7 +8,8 @@ const MESSAGE_TYPES = {
   MESSAGE: 'MESSAGE',
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
-  GET_CHATS: 'GET_CHATS',
+  GET_CHATS: 'GET_CHATS', //obtener chats
+  GET_CHATS2:'GET_CHATS', //obtener chats
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -68,6 +69,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.GET_CHATS:
           await handleGetChats(connection);
           break;
+          case MESSAGE_TYPES.GET_CHATS2:
+            await handleGetChats2(msg.area_id);
+            break;
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -109,15 +113,16 @@ async function handleLogin(connection, msg) {
 
     connection.role = authData.role;
     connection.user_id = authData.user_id;
+    connection.name = authData.name;
+    connection.area_id = authData.area_id;
 
     if (authData.role === 'admin') {
-      connection.area_id = authData.area_id;
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1 }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name }));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
-        message: 'Bienvenido! ¿Qué problema tienes? Selecciona el número correspondiente: \n1. Area 1 \n2. Area 2 \n3. Area 3',
+        message: 'Bienvenido! ¿Qué problema tienes? ',
       }));
     } else {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
@@ -127,6 +132,8 @@ async function handleLogin(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
   }
 }
+
+
 
 async function handleSelectArea(connection, msg) {
   if (connection.role !== 'client') return;
@@ -209,8 +216,17 @@ async function handleMessage(connection, msg) {
         conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
       }
     });
+
+    // Verificamos si el mensaje es de un cliente (IsAdmin === 0) y si tiene area_id
+    if (msg.IsAdmin === 0) {
+      console.log('Notifying admins for area:', msg.area_id);
+      await handleGetChats2(msg.area_id);
+    } else if (msg.IsAdmin === 0 && !msg.area_id) {
+      console.warn('Message from client does not have area_id:', msg);
+    }
+
   } catch (error) {
-    console.error('Error saving message:', error);
+    console.error('Error in handleMessage:', error);
   }
 }
 
@@ -274,9 +290,12 @@ async function handleRedirectChat(connection, msg) {
 }
 
 async function handleGetChats(connection) {
-  if (connection.role !== 'admin') return;
-  console.log('Processing GET_CHATS:');
-
+  console.log('handleGetChats called for user:', connection.user_id);
+  if (connection.role !== 'admin') {
+    console.log('User is not admin, aborting GET_CHATS');
+    return;
+  }
+  console.log('Processing GET_CHATS for area_id:', connection.area_id);
   try {
     const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}`);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -303,6 +322,25 @@ async function handleGetChatMessages(connection, msg) {
     console.error('Error fetching chat messages:', error);
   }
 }
+
+async function handleGetChats2(area_id) {
+  console.log('Processing GET_CHATS for area_id:', area_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}`);
+    console.log("api get chats");
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.role === 'admin' && conn.area_id === area_id) {
+        conn.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
 
 async function handleMarkAsRead(msg) {
   console.log('Processing MARK_AS_READ:', msg);

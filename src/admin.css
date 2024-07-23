@@ -11,12 +11,28 @@
 .admin-header {
   background-color: #007bff;
   color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between; /* Distribuye el contenido a lo ancho */
+  align-items: center; /* Centra el contenido verticalmente */
+  flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+}
+
+.admin-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.admin-header p {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .admin-main {
   display: flex;
   flex-grow: 1;
   overflow: hidden;
+  width: 100%;
 }
 
 .admin-chat-list {
@@ -42,6 +58,7 @@
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .admin-chat-messages {
@@ -49,6 +66,12 @@
   overflow-y: auto;
   background-color: #f9f9f9;
   max-height: 70vh; /* Fijar altura máxima para permitir desplazamiento */
+  display: flex;
+  flex-direction: column;
+}
+
+.message-container {
+  display: flex; /* Asegurarse de que los contenedores de mensajes sean flexibles */
 }
 
 .admin-message {
@@ -61,13 +84,12 @@
 .admin-message-admin {
   background-color: #d1e7dd;
   color: #0f5132;
-  align-self: flex-end; /* Alinear al lado derecho */
+  margin-left: auto; /* Empujar el mensaje hacia la derecha */
 }
 
 .admin-message-client {
   background-color: #cff4fc;
   color: #055160;
-  align-self: flex-start; /* Alinear al lado izquierdo */
 }
 
 .admin-message-finalized {
@@ -104,4 +126,56 @@
   height: 10px;
   background-color: #007bff;
   border-radius: 50%;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 1200px) {
+  .admin-header {
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 992px) {
+  .admin-main {
+    flex-direction: column;
+  }
+
+  .admin-chat-list {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .admin-chat-window {
+    width: 100%;
+  }
+
+  .admin-chat-messages {
+    max-height: 50vh; /* Ajustar altura máxima para tabletas */
+  }
+
+  .admin-header {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-chat-messages {
+    max-height: 40vh; /* Ajustar altura máxima para móviles */
+  }
+
+  .admin-message {
+    max-width: 80%;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .admin-header p {
+    font-size: 0.875rem; /* Reducir el tamaño de fuente en móviles */
+  }
 }
