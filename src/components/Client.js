@@ -235,7 +235,7 @@ function Client() {
           <h2>Chat {unreadOwnersCount > 0 && `Lugar en cola aproximado: ${unreadOwnersCount}`}</h2>
           <div className="Client-messages">
             {messages.map((msg, index) => (
-              <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'}`}>
+              <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
                 <div className="Client-message-content">
                   <div>{msg.text}</div>
                   <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>

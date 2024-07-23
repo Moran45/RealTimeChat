@@ -24,7 +24,7 @@ $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
-    echo json_encode(['role' => 'admin', 'area_id' => $row['area_id'], 'user_id' => $row['id'] , 'name' => $row['name']]);
+    echo json_encode(['role' => 'admin', 'area_id' => $row['area_id'], 'user_id' => $row['id'], 'name' => $row['name']]);
     exit;
 }
 
@@ -41,5 +41,21 @@ if ($result->num_rows > 0) {
     exit;
 }
 
-echo json_encode(['role' => 'unknown']);
+// Crear nuevo usuario si no existe
+$name = $email_or_name;
+$email = $email_or_name . '@gmail.com'; // Aquí puedes ajustar el formato de email si es necesario
+
+$sql = "INSERT INTO users (name, email, created_at) VALUES (?, ?, NOW())";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ss", $name, $email);
+
+if ($stmt->execute()) {
+    $user_id = $stmt->insert_id;
+    echo json_encode(['role' => 'client', 'user_id' => $user_id,]);
+} else {
+    echo json_encode(['role' => 'desconocido', 'error' => 'No se pudo crear el usuario']);
+}
+
+$stmt->close();
+$conn->close();
 ?>

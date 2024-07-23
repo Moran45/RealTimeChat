@@ -213,7 +213,7 @@ function Admin() {
   const finalizeReport = () => {
     if (ws && selectedChat) {
       const message = {
-        type: 'finalize',
+        type: 'FINALIZE',
         chat_id: selectedChat.chat_id,
         text: 'Reporte finalizado',
         owner_id: localStorage.getItem('user_id'),
@@ -222,7 +222,6 @@ function Admin() {
       };
 
       ws.send(JSON.stringify(message));
-      setMessages((prev) => [...prev, message]);
       setFinalizedChats((prev) => [...prev, selectedChat.chat_id]);
       setShowModal(false);
       scrollToBottom();
@@ -301,10 +300,10 @@ function Admin() {
               <div className="admin-chat-messages p-3 border rounded mb-3">
   {Array.isArray(messages) && messages.map((msg, index) => (
     <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
+      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'FINALIZE' || msg.text=== 'Reporte finalizado' && msg.IsAdmin === 1 ? 'admin-message-finalized' : ''}`}>
         <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
       </div>
-      {msg.type === 'finalize' && (
+      {msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 &&(
         <div className="admin-message-separator">
           <strong>Reporte finalizado</strong>
         </div>

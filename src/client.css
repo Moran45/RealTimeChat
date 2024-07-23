@@ -83,6 +83,20 @@
   border-bottom-left-radius: 0;
 }
 
+.Client-message.finalized {
+  background-color: #f8d7da;
+  color: #842029;
+  text-align: center;
+  align-self: stretch; /* Hacer que el elemento ocupe todo el ancho */
+  width: 100%; /* Asegurarse de que el ancho sea el 100% del contenedor */
+  text-align: center; /* Centrar el texto */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0; /* Quitar el radio del borde inferior derecho para que coincida con el izquierdo */
+  padding: 10px; /* Añadir algo de relleno para mejorar la legibilidad */
+  box-sizing: border-box; /* Incluir el relleno y el borde en el ancho y alto total del elemento */
+}
+
+
 .Client-message-content {
   display: flex;
   justify-content: space-between;

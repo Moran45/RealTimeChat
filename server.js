@@ -7,6 +7,7 @@ const MESSAGE_TYPES = {
   SELECT_AREA: 'SELECT_AREA',
   MESSAGE: 'MESSAGE',
   REPORT_MESSAGE: 'REPORT_MESSAGE',
+  FINALIZE: 'FINALIZE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS', //obtener chats
   GET_CHATS2:'GET_CHATS', //obtener chats
@@ -62,6 +63,9 @@ webSocketServer.on('request', (request) => {
           break;
         case MESSAGE_TYPES.REPORT_MESSAGE:
           await handleReportMessage(connection, msg);
+          break;
+          case MESSAGE_TYPES.FINALIZE:
+            await handleMessage(connection, msg);
           break;
         case MESSAGE_TYPES.REDIRECT_CHAT:
           await handleRedirectChat(connection, msg);
@@ -119,7 +123,7 @@ async function handleLogin(connection, msg) {
     if (authData.role === 'admin') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name}));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',
