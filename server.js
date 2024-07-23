@@ -8,8 +8,8 @@ const MESSAGE_TYPES = {
   MESSAGE: 'MESSAGE',
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
-  GET_CHATS: 'GET_CHATS', //obtener chats
-  GET_CHATS2:'GET_CHATS', //obtener chats
+  GET_CHATS: 'GET_CHATS',
+  GET_CHATS2:'GET_CHATS',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -69,9 +69,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.GET_CHATS:
           await handleGetChats(connection);
           break;
-          case MESSAGE_TYPES.GET_CHATS2:
-            await handleGetChats2(msg.area_id);
-            break;
+        case MESSAGE_TYPES.GET_CHATS2:
+          await handleGetChats2(msg.area_id);
+          break;
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -100,11 +100,26 @@ webSocketServer.on('request', (request) => {
 async function handleLogin(connection, msg) {
   console.log('Processing LOGIN');
   try {
-    const response = await fetchWrapper(`${API_BASE_URL}/authenticate.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ email_or_name: msg.email_or_name }),
-    });
+    let response;
+
+    if (msg.password) { // Check if password exists, which indicates admin login
+      response = await fetchWrapper(`${API_BASE_URL}/auth_admin.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          email_or_name: msg.email_or_name,
+          password: msg.password
+        }),
+      });
+    } else { // User login
+      response = await fetchWrapper(`${API_BASE_URL}/auth_user.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          email_or_name: msg.email_or_name
+        }),
+      });
+    }
 
     if (!response.ok) throw new Error('Network response was not ok');
     
@@ -117,9 +132,9 @@ async function handleLogin(connection, msg) {
     connection.area_id = authData.area_id;
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, area_id: authData.area_id, name: authData.name }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0 }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id }));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',
