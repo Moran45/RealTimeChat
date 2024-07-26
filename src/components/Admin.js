@@ -40,7 +40,7 @@ function Admin() {
       if (ws) {
         handleLogin(storedUser);
       }
-      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: ${storedUser.type_admin}`);
+      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: Sub-Admin`);
     } else {
       navigate('/'); // Redirigir al login si no hay información de usuario
     }
