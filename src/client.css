@@ -154,18 +154,18 @@
 /* Media queries for responsiveness */
 @media (min-width: 768px) {
   .Client-chat-window {
-    max-width: 80%;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 992px) {
   .Client-chat-window {
-    max-width: 70%;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 1200px) {
   .Client-chat-window {
-    max-width: 60%;
+    max-width: 100%;
   }
 }
