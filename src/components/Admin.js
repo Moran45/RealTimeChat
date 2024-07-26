@@ -43,7 +43,6 @@ function Admin() {
       navigate('/'); // Redirigir al login si no hay información de usuario
     }
   }, [ws, navigate]);
-  
 
   useEffect(() => {
     if (!ws) return;
@@ -58,6 +57,9 @@ function Admin() {
       } else if (msg.type === 'MESSAGE') {
         setMessages((prev) => [...prev, msg.message]);
         scrollToBottom();
+        if (isChatFinalized(selectedChat.chat_id)) {
+          setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
+        }
       } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       }
@@ -78,9 +80,13 @@ function Admin() {
         setMessages(msg.messages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
         setMessages((prev) => [...prev, msg.message]);
+        // Reactivar input y botones si llega un nuevo mensaje
+        if (isChatFinalized(selectedChat?.chat_id)) {
+          setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
+        }
       } else if (msg.type === 'NEW_CHAT') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      }else if (msg.type === 'CHAT_REDIRECTED') {
+      } else if (msg.type === 'CHAT_REDIRECTED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       } else if (msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
@@ -102,7 +108,7 @@ function Admin() {
           }
           return updatedMessages;
         });
-
+    
         if (msg.role === 'Cliente') {
           setClients((prevClients) =>
             prevClients.map((client) =>
@@ -114,6 +120,7 @@ function Admin() {
         }
       }
     };
+    
 
     ws.send(JSON.stringify({ type: 'GET_CHATS' }));
   
@@ -219,6 +226,7 @@ function Admin() {
         owner_id: localStorage.getItem('user_id'),
         IsAdmin : 1,
         role: 'Admin',
+        chat_finalized: 1
       };
 
       ws.send(JSON.stringify(message));
@@ -311,8 +319,7 @@ function Admin() {
     </div>
   ))}
   <div ref={messagesEndRef} />
-</div>
-
+    </div>
               <div className="admin-chat-input d-flex align-items-center">
                 <input
                   type="text"

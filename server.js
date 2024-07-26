@@ -11,6 +11,7 @@ const MESSAGE_TYPES = {
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS', //obtener chats
   GET_CHATS2:'GET_CHATS', //obtener chats
+  GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -73,9 +74,12 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.GET_CHATS:
           await handleGetChats(connection);
           break;
-          case MESSAGE_TYPES.GET_CHATS2:
-            await handleGetChats2(msg.area_id);
-            break;
+        case MESSAGE_TYPES.GET_CHATS2:
+          await handleGetChats2(msg.area_id);
+         break;
+        case MESSAGE_TYPES.GET_CHATS_CLIENT:
+          await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
+          break;            
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -208,7 +212,8 @@ async function handleMessage(connection, msg) {
         text: msg.text,
         owner_id: connection.user_id || msg.owner_id,
         role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'),
-        IsAdmin: msg.IsAdmin
+        IsAdmin: msg.IsAdmin,
+        chat_finalized: msg.chat_finalized
       }),
     });
 
@@ -248,7 +253,7 @@ async function handleReportMessage(connection, msg) {
         text: msg.message.text,
         owner_id: msg.owner_id,
         role: 'system',
-        IsAdmin: msg.IsAdmin
+        IsAdmin: msg.IsAdmin,
       }),
     });
 
@@ -342,6 +347,19 @@ async function handleGetChats2(area_id) {
     });
   } catch (error) {
     console.error('Error fetching chats:', error);
+  }
+}
+
+async function handleGetChatsClient(connection, chat_id) {
+  console.log('Processing GET_CHATS_CLIENT for chat_id:', chat_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats_client.php?chat_id=${chat_id}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    connection.sendUTF(JSON.stringify({ type: 'CHATS_CLIENT', chats }));
+  } catch (error) {
+    console.error('Error fetching client chats:', error);
   }
 }
 
