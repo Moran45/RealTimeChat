@@ -1,0 +1,92 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .appscss-app {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .appscss-login-container {
+    text-align: center;
+    width: 57rem;
+    padding: 50px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    background-color: #34495e;
+    color: white;
+    box-sizing: border-box;
+  }
+  
+  .appscss-login-container h2 {
+    margin-bottom: 30px;
+  }
+  
+  .appscss-login-form input {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin: 15px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+  }
+  
+  .appscss-login-form button {
+    width: 100%;
+    padding: 15px;
+    background-color: #007bff;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  .appscss-login-form button:hover {
+    background-color: #0056b3;
+  }
+  
+  .appscss-tab-switch {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  
+  .appscss-tab {
+    flex: 1;
+    padding: 15px;
+    cursor: pointer;
+    text-align: center;
+    color: #fff;
+    border-radius: 25px;
+    margin: 0 5px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .appscss-tab.appscss-active {
+    background: linear-gradient(90deg, #007bff 0%, #00d2ff 100%);
+    color: white;
+  }
+  
+  @media (max-width: 600px) {
+    .appscss-login-container {
+      width: 90%;
+      padding: 30px;
+    }
+  
+    .appscss-login-form input,
+    .appscss-login-form button {
+      padding: 12px;
+    }
+  }
+  
