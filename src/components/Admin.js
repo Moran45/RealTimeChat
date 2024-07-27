@@ -15,6 +15,8 @@ function Admin() {
   const [clients, setClients] = useState([]);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [finalizedChats, setFinalizedChats] = useState([]); // Lista de chats finalizados
+  const [showAdminListModal, setShowAdminListModal] = useState(false); //Mostrar lista de administradores
+  const [adminList, setAdminList] = useState([]); //Setear lista de admins
   const [showModal, setShowModal] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
@@ -101,6 +103,7 @@ function Admin() {
       } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       }
+      
     };
 
     ws.onclose = () => {
@@ -204,8 +207,16 @@ function Admin() {
     ws.send(JSON.stringify(newUser));
     setShowCreateUserModal(false);
   };
+
+  const handleShowAdminList = () => {
+    const fetchAdmins = () => {
+      ws.send(JSON.stringify({ type: 'GET_ADMINS' }));
+    };
   
+    fetchAdmins();
+  };
   
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewUserData({
@@ -213,6 +224,7 @@ function Admin() {
       [name]: value
     });
   };
+  
 
   const handleRedirectChat = (newAreaId) => {
     if (!ws || !selectedChat) {
@@ -298,6 +310,72 @@ function Admin() {
 
   return ( 
     <div className="admin-container">
+      {showAdminListModal && (
+  <div className="modal d-block" tabIndex="-1" role="dialog">
+    <div className="modal-dialog" role="document">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">Lista de Administradores</h5>
+          <button type="button" className="close" onClick={() => setShowAdminListModal(false)} aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div className="modal-body">
+          <ul>
+            {adminList.map((admin, index) => (
+              <li key={index}>
+                Nombre: {admin.name}, Email: {admin.email}, Área ID: {admin.area_id}, Contraseña: {admin.contrasena}, Tipo de Admin: {admin.type_admin}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={() => setShowAdminListModal(false)}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+      <div className={`modal ${showAdminListModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
+  <div className="modal-dialog" role="document">
+    <div className="modal-content">
+      <div className="modal-header">
+        <h5 className="modal-title">Lista de Administradores</h5>
+        <button type="button" className="close" onClick={() => setShowAdminListModal(false)} aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div className="modal-body">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Área ID</th>
+              <th>Contraseña</th>
+              <th>Tipo de Admin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {adminList.map((admin, index) => (
+              <tr key={index}>
+                <td>{admin.name}</td>
+                <td>{admin.email}</td>
+                <td>{admin.area_id}</td>
+                <td>{admin.contrasena}</td>
+                <td>{admin.type_admin}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn btn-secondary" onClick={() => setShowAdminListModal(false)}>Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{showAdminListModal && <div className="modal-backdrop fade show"></div>}
       <div className={`modal ${showCreateUserModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
   <div className="modal-dialog" role="document">
     <div className="modal-content">
@@ -344,7 +422,10 @@ function Admin() {
         <h2>Chats</h2>
         <p>{welcomeMessage}</p>
         {user && user.type_admin === 'Full' && (
-    <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
+ <>
+ <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
+ <button className="btn btn-light ml-2">Lista de admins</button>
+</>
   )}
       </div>
       <div className="admin-main d-flex">

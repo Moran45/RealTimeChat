@@ -17,6 +17,7 @@ const MESSAGE_TYPES = {
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
   CREATE_ADMIN: 'CREATE_ADMIN',
+  GET_ADMINS: 'GET_ADMINS',
   DELETE_CHAT: 'DELETE_CHAT'
 };
 
@@ -94,7 +95,10 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.DELETE_CHAT:
           await handleDeleteChat(msg);
           break;
-          case MESSAGE_TYPES.CREATE_ADMIN:
+        case MESSAGE_TYPES.GET_ADMINS:
+          await handleShowAdminList(connection);
+          break;
+        case MESSAGE_TYPES.CREATE_ADMIN:
             await handleCreateAdmin(connection, msg);
             break;
         default:
@@ -154,6 +158,32 @@ async function handleLogin(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
   }
 }
+
+async function handleGetAdmins(connection) {
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/obtener_admins.php`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await response.json();
+    connection.sendUTF(JSON.stringify({ type: 'ADMINS_LIST', admins: data.admins }));
+  } catch (error) {
+    console.error('Error fetching admins:', error);
+  }
+}
+const handleShowAdminList = async () => {
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/obtener_admins.php`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await response.json();
+    setAdminList(data.admins);
+    setShowAdminListModal(true);
+  } catch (error) {
+    console.error('Error fetching admin list:', error);
+  }
+};
 
 async function handleCreateAdmin(connection, msg) {
   try {
