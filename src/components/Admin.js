@@ -195,16 +195,23 @@ function Admin() {
   };
 
   const handleCreateUser = () => {
-    const newUser = {
+    const storedUser = {
+      user_id: localStorage.getItem('user_id'),
+      name: localStorage.getItem('name'),
+    }
+    console.log(storedUser);
+    const message = {
       type: 'CREATE_ADMIN',
       name: newUserData.name,
       email: newUserData.email,
       area_id: newUserData.area_id,
       contrasena: newUserData.contrasena,
-      type_admin: newUserData.type_admin.charAt(0).toUpperCase() + newUserData.type_admin.slice(1).toLowerCase(),
+      type_admin: newUserData.type_admin,
+      user_mom: storedUser.name,
+      user_mom_id: storedUser.user_id
     };
-  
-    ws.send(JSON.stringify(newUser));
+    console.log('New user:', message);
+    ws.send(JSON.stringify(message));
     setShowCreateUserModal(false);
   };
 
@@ -380,7 +387,7 @@ function Admin() {
   <div className="modal-dialog" role="document">
     <div className="modal-content">
       <div className="modal-header">
-        <h5 className="modal-title">Crear Usuario</h5>
+        <h5 className="modal-title">Crear usuario</h5>
         <button type="button" className="close" onClick={() => setShowCreateUserModal(false)} aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -405,8 +412,8 @@ function Admin() {
         <div className="form-group">
           <label>Tipo de Admin</label>
           <select className="form-control" name="type_admin" value={newUserData.type_admin} onChange={handleInputChange}>
-            <option value="sub">Sub</option>
-            <option value="full">Full</option>
+            <option value="Sub">Sub</option>
+            <option value="Full">Full</option>
           </select>
         </div>
       </div>
