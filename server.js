@@ -94,6 +94,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.DELETE_CHAT:
           await handleDeleteChat(msg);
           break;
+          case MESSAGE_TYPES.CREATE_ADMIN:
+            await handleCreateAdmin(connection, msg);
+            break;
         default:
           console.log('Unknown message type:', msg.type);
       }
@@ -152,7 +155,7 @@ async function handleLogin(connection, msg) {
   }
 }
 
-async function handleCreateAdmin(msg) {
+async function handleCreateAdmin(connection, msg) {
   try {
     const url = `${API_BASE_URL}/create_admin.php`;
     const body = {
@@ -169,13 +172,17 @@ async function handleCreateAdmin(msg) {
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) throw new Error('Network response was not ok');
-
-    const result = await response.json();
-    return result;
+    const textResponse = await response.text(); // Obtén la respuesta como texto primero
+    try {
+      const result = JSON.parse(textResponse); // Intenta parsear el JSON
+      connection.sendUTF(JSON.stringify(result));
+    } catch (jsonError) {
+      console.error('Failed to parse JSON response:', textResponse);
+      connection.sendUTF(JSON.stringify({ success: false, message: 'Failed to create admin' }));
+    }
   } catch (error) {
     console.error('Error creating admin:', error);
-    return { success: false, message: 'Failed to create admin' };
+    connection.sendUTF(JSON.stringify({ success: false, message: 'Failed to create admin' }));
   }
 }
 

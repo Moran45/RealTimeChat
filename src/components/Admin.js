@@ -198,12 +198,13 @@ function Admin() {
       email: newUserData.email,
       area_id: newUserData.area_id,
       contrasena: newUserData.contrasena,
-      type_admin: newUserData.type_admin,
+      type_admin: newUserData.type_admin.charAt(0).toUpperCase() + newUserData.type_admin.slice(1).toLowerCase(),
     };
   
     ws.send(JSON.stringify(newUser));
     setShowCreateUserModal(false);
   };
+  
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
