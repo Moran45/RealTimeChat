@@ -13,12 +13,22 @@ function Admin() {
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]); // Similar a Client.js
   const [clients, setClients] = useState([]);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [finalizedChats, setFinalizedChats] = useState([]); // Lista de chats finalizados
   const [showModal, setShowModal] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc');
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
+  const [newUserData, setNewUserData] = useState({
+    user_id: '',
+    name: '',
+    email: '',
+    area_id: '',
+    created_at: '',
+    contrasena: '',
+    type_admin: ''
+  });
   const [currentAdminArea, setCurrentAdminArea] = useState(() => {
     const storedArea = localStorage.getItem('area_id');
     return storedArea ? parseInt(storedArea, 10) : 1; // Usa 1 como valor por defecto si no hay área almacenada
@@ -41,9 +51,9 @@ function Admin() {
       if (ws) {
         handleLogin(storedUser);
       }
-      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: Sub-Admin`);
+      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: ${storedUser.type_admin}`);
     } else {
-      navigate('/'); // Redirigir al login si no hay información de usuario
+      navigate('/');
     }
   }, [ws, navigate]);
   
@@ -181,6 +191,28 @@ function Admin() {
     ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
   };
 
+  const handleCreateUser = () => {
+    const newUser = {
+      type: 'CREATE_ADMIN',
+      name: newUserData.name,
+      email: newUserData.email,
+      area_id: newUserData.area_id,
+      contrasena: newUserData.contrasena,
+      type_admin: newUserData.type_admin,
+    };
+  
+    ws.send(JSON.stringify(newUser));
+    setShowCreateUserModal(false);
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewUserData({
+      ...newUserData,
+      [name]: value
+    });
+  };
+
   const handleRedirectChat = (newAreaId) => {
     if (!ws || !selectedChat) {
       alert('WebSocket connection not established or chat not selected.');
@@ -263,11 +295,56 @@ function Admin() {
 
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
-  return (
+  return ( 
     <div className="admin-container">
-      <div className="admin-header bg-primary text-white p-3">
+      <div className={`modal ${showCreateUserModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
+  <div className="modal-dialog" role="document">
+    <div className="modal-content">
+      <div className="modal-header">
+        <h5 className="modal-title">Crear Usuario</h5>
+        <button type="button" className="close" onClick={() => setShowCreateUserModal(false)} aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div className="modal-body">
+        <div className="form-group">
+          <label>Nombre</label>
+          <input type="text" className="form-control" name="name" value={newUserData.name} onChange={handleInputChange} />
+        </div>
+        <div className="form-group">
+          <label>Email</label>
+          <input type="email" className="form-control" name="email" value={newUserData.email} onChange={handleInputChange} />
+        </div>
+        <div className="form-group">
+          <label>Área ID</label>
+          <input type="text" className="form-control" name="area_id" value={newUserData.area_id} onChange={handleInputChange} />
+        </div>
+        <div className="form-group">
+          <label>Contraseña</label>
+          <input type="password" className="form-control" name="contrasena" value={newUserData.contrasena} onChange={handleInputChange} />
+        </div>
+        <div className="form-group">
+          <label>Tipo de Admin</label>
+          <select className="form-control" name="type_admin" value={newUserData.type_admin} onChange={handleInputChange}>
+            <option value="sub">Sub</option>
+            <option value="full">Full</option>
+          </select>
+        </div>
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancelar</button>
+        <button type="button" className="btn btn-primary" onClick={handleCreateUser}>Crear Usuario</button>
+      </div>
+    </div>
+  </div>
+</div>
+{showCreateUserModal && <div className="modal-backdrop fade show"></div>}
+        <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3`}>
         <h2>Chats</h2>
         <p>{welcomeMessage}</p>
+        {user && user.type_admin === 'Full' && (
+    <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
+  )}
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
@@ -342,7 +419,7 @@ function Admin() {
           )}
         </div>
       </div>
-
+  
       <div className={`modal ${showModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
         <div className="modal-dialog" role="document">
           <div className="modal-content">
@@ -363,7 +440,7 @@ function Admin() {
         </div>
       </div>
       {showModal && <div className="modal-backdrop fade show"></div>}
-    </div>
+    </div>  
   );
 }
 

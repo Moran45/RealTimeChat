@@ -16,6 +16,7 @@ const MESSAGE_TYPES = {
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
+  CREATE_ADMIN: 'CREATE_ADMIN',
   DELETE_CHAT: 'DELETE_CHAT'
 };
 
@@ -106,6 +107,7 @@ webSocketServer.on('request', (request) => {
   });
 });
 
+
 async function handleLogin(connection, msg) {
   console.log('Processing LOGIN');
   try {
@@ -147,6 +149,33 @@ async function handleLogin(connection, msg) {
   } catch (error) {
     console.error('Error during authentication:', error);
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
+  }
+}
+
+async function handleCreateAdmin(msg) {
+  try {
+    const url = `${API_BASE_URL}/create_admin.php`;
+    const body = {
+      name: msg.name,
+      email: msg.email,
+      area_id: msg.area_id,
+      contrasena: msg.contrasena,
+      type_admin: msg.type_admin,
+    };
+
+    const response = await fetchWrapper(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    return { success: false, message: 'Failed to create admin' };
   }
 }
 

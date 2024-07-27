@@ -19,6 +19,16 @@
   flex-wrap: wrap;
   width: 100% !important;
 }
+.admin-header-blue {
+  background-color: #17a2b8; /* Cambia a un azul diferente si lo prefieres */
+  color: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100% !important;
+}
 
 .admin-header h2 {
   margin: 0;
