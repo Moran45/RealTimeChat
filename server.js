@@ -1,5 +1,6 @@
 const WebSocketServer = require('websocket').server;
 const http = require('http');
+const { type } = require('os');
 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
@@ -7,9 +8,11 @@ const MESSAGE_TYPES = {
   SELECT_AREA: 'SELECT_AREA',
   MESSAGE: 'MESSAGE',
   REPORT_MESSAGE: 'REPORT_MESSAGE',
+  FINALIZE: 'FINALIZE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS',
   GET_CHATS2:'GET_CHATS',
+  GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -63,6 +66,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.REPORT_MESSAGE:
           await handleReportMessage(connection, msg);
           break;
+        case MESSAGE_TYPES.FINALIZE:
+          await handleMessage(connection, msg);
+          break;
         case MESSAGE_TYPES.REDIRECT_CHAT:
           await handleRedirectChat(connection, msg);
           break;
@@ -72,6 +78,9 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.GET_CHATS2:
           await handleGetChats2(msg.area_id);
           break;
+        case MESSAGE_TYPES.GET_CHATS_CLIENT:
+          await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
+          break; 
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -100,49 +109,34 @@ webSocketServer.on('request', (request) => {
 async function handleLogin(connection, msg) {
   console.log('Processing LOGIN');
   try {
-    let response;
+    let url = `${API_BASE_URL}/auth_user.php`;
+    let body = { email_or_name: msg.email_or_name };
 
-    if (msg.password) { // Check if password exists, which indicates admin login
-      response = await fetchWrapper(`${API_BASE_URL}/auth_admin.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          email_or_name: msg.email_or_name,
-          password: msg.password
-        }),
-      });
-    } else { // User login
-      response = await fetchWrapper(`${API_BASE_URL}/auth_user.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          email_or_name: msg.email_or_name
-        }),
-      });
+    if (msg.password) {
+      url = `${API_BASE_URL}/auth_admin.php`;
+      body.password = msg.password;
     }
+
+    const response = await fetchWrapper(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(body),
+    });
 
     if (!response.ok) throw new Error('Network response was not ok');
     
     const authData = await response.json();
     console.log('Auth data:', authData);
-
     connection.role = authData.role;
     connection.user_id = authData.user_id;
     connection.name = authData.name;
     connection.area_id = authData.area_id;
-    connection.type_admin = authData.type_admin; // Ensure type_admin is included
+    connection.type_admin = authData.type_admin
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({
-        type: 'LOGIN_SUCCESS',
-        role: 'admin',
-        user_id: authData.user_id,
-        area_id: authData.area_id,
-        name: authData.name,
-        type_admin: authData.type_admin // Include type_admin in the response
-      }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name}));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',
@@ -155,8 +149,6 @@ async function handleLogin(connection, msg) {
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
   }
 }
-
-
 
 
 async function handleSelectArea(connection, msg) {
@@ -228,7 +220,8 @@ async function handleMessage(connection, msg) {
         text: msg.text,
         owner_id: connection.user_id || msg.owner_id,
         role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'),
-        IsAdmin: msg.IsAdmin
+        IsAdmin: msg.IsAdmin,
+        chat_finalized: msg.chat_finalized
       }),
     });
 
@@ -314,9 +307,14 @@ async function handleRedirectChat(connection, msg) {
 }
 
 async function handleGetChats(connection) {
-  console.log('handleGetChats called for user:', connection.user_id);
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id);
   if (connection.role !== 'admin') {
-    console.log('User is not admin, aborting GET_CHATS');
+    console.log('User is not admin, aborting GET_CHATS. User details:', {
+      user_id: connection.user_id,
+      role: connection.role,
+      area_id: connection.area_id,
+      name: connection.name
+    });
     return;
   }
   console.log('Processing GET_CHATS for area_id:', connection.area_id);
@@ -365,6 +363,18 @@ async function handleGetChats2(area_id) {
   }
 }
 
+async function handleGetChatsClient(connection, chat_id) {
+  console.log('Processing GET_CHATS_CLIENT for chat_id:', chat_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats_client.php?chat_id=${chat_id}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    connection.sendUTF(JSON.stringify({ type: 'CHATS_CLIENT', chats }));
+  } catch (error) {
+    console.error('Error fetching client chats:', error);
+  }
+}
 
 async function handleMarkAsRead(msg) {
   console.log('Processing MARK_AS_READ:', msg);

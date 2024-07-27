@@ -32,7 +32,8 @@ function Admin() {
       role: 'admin', // Asumiendo que solo los admins llegan a esta página
       name: localStorage.getItem('name'),
       email_or_name: localStorage.getItem('name'),
-      type_admin: localStorage.getItem('type_admin')
+      type_admin: localStorage.getItem('type_admin'),
+      password: localStorage.getItem('password')
     };
   
     if (storedUser.user_id && storedUser.area_id) {
@@ -84,6 +85,9 @@ function Admin() {
       } else if (msg.type === 'MESSAGE') {
         setMessages((prev) => [...prev, msg.message]);
         scrollToBottom();
+        if (isChatFinalized(selectedChat.chat_id)) {
+          setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
+        }
       } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       }
@@ -104,6 +108,9 @@ function Admin() {
         setMessages(msg.messages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
         setMessages((prev) => [...prev, msg.message]);
+        if (isChatFinalized(selectedChat?.chat_id)) {
+          setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
+        }
       } else if (msg.type === 'NEW_CHAT') {
         ws.send(JSON.stringify({ type: 'GET_CHATS' }));
       }else if (msg.type === 'CHAT_REDIRECTED') {
@@ -215,16 +222,16 @@ function Admin() {
   const finalizeReport = () => {
     if (ws && selectedChat) {
       const message = {
-        type: 'finalize',
+        type: 'FINALIZE',
         chat_id: selectedChat.chat_id,
         text: 'Reporte finalizado',
         owner_id: localStorage.getItem('user_id'),
         IsAdmin : 1,
         role: 'Admin',
+        chat_finalized: 1
       };
 
       ws.send(JSON.stringify(message));
-      setMessages((prev) => [...prev, message]);
       setFinalizedChats((prev) => [...prev, selectedChat.chat_id]);
       setShowModal(false);
       scrollToBottom();
@@ -302,18 +309,18 @@ function Admin() {
                 )}
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
-                {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-                    <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
-                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
-                    </div>
-                    {msg.type === 'finalize' && (
-                      <div className="admin-message-separator">
-                        <strong>Reporte finalizado</strong>
-                      </div>
-                    )}
-                  </div>
-                ))}
+  {Array.isArray(messages) && messages.map((msg, index) => (
+    <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
+      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'FINALIZE' || msg.text=== 'Reporte finalizado' && msg.IsAdmin === 1 ? 'admin-message-finalized' : ''}`}>
+        <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
+      </div>
+      {msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 &&(
+        <div className="admin-message-separator">
+          <strong>Reporte finalizado</strong>
+        </div>
+      )}
+    </div>
+  ))}
                 <div ref={messagesEndRef} />
               </div>
               <div className="admin-chat-input d-flex align-items-center">

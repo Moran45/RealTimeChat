@@ -34,6 +34,8 @@ function Login() {
             localStorage.setItem('area_id', msg.area_id);
             localStorage.setItem('user_id_admin', msg.user_id);
             localStorage.setItem('name', msg.name);
+            localStorage.setItem('password', msg.password);
+            localStorage.setItem('type_admin', msg.type_admin);
             if (msg.type_admin === 'Full') {
               navigate('/adminFull');
             } else {
