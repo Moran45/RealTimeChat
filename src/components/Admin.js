@@ -320,71 +320,6 @@ function Admin() {
 
   return ( 
     <div className="admin-container">
-      {showAdminListModal && (
-  <div className="modal d-block" tabIndex="-1" role="dialog">
-    <div className="modal-dialog" role="document">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Lista de Administradores</h5>
-          <button type="button" className="close" onClick={() => setShowAdminListModal(false)} aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div className="modal-body">
-          <ul>
-            {adminList.map((admin, index) => (
-              <li key={index}>
-                Nombre: {admin.name}, Email: {admin.email}, Área ID: {admin.area_id}, Contraseña: {admin.contrasena}, Tipo de Admin: {admin.type_admin}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={() => setShowAdminListModal(false)}>Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-      <div className={`modal ${showAdminListModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
-  <div className="modal-dialog" role="document">
-    <div className="modal-content">
-      <div className="modal-header">
-        <h5 className="modal-title">Lista de Administradores</h5>
-        <button type="button" className="close" onClick={() => setShowAdminListModal(false)} aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div className="modal-body">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Área ID</th>
-              <th>Contraseña</th>
-              <th>Tipo de Admin</th>
-            </tr>
-          </thead>
-          <tbody>
-            {adminList.map((admin, index) => (
-              <tr key={index}>
-                <td>{admin.name}</td>
-                <td>{admin.email}</td>
-                <td>{admin.area_id}</td>
-                <td>{admin.contrasena}</td>
-                <td>{admin.type_admin}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="modal-footer">
-        <button type="button" className="btn btn-secondary" onClick={() => setShowAdminListModal(false)}>Cerrar</button>
-      </div>
-    </div>
-  </div>
-</div>
 {showAdminListModal && <div className="modal-backdrop fade show"></div>}
       <div className={`modal ${showCreateUserModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
   <div className="modal-dialog" role="document">
@@ -437,9 +372,28 @@ function Admin() {
  <button className="btn btn-light ml-2" onClick={handleShowAdminList}>Lista de admins</button>
 </>
   )}
-      </div>
+  </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
+        <div>
+        {adminList.length > 0 && (
+      <div>
+        <p>Lista de admins</p>
+        <ul>
+          {adminList.map((admin, index) => (
+            <li key={index} style={{ marginBottom: '10px' }}>
+              <div><strong>Nombre:</strong> {admin.name}</div>
+              <div><strong>Email:</strong> {admin.email}</div>
+              <div><strong>Área:</strong> {admin.area_id}</div>
+              <div><strong>Tipo Admin:</strong> {admin.type_admin}</div>
+              <div><strong>Contraseña:</strong> {admin.contrasena}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+</div>
+
           <div className="d-flex justify-content-between mb-3">
             <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
             <button className="btn btn-light" onClick={handleSortChats}>
