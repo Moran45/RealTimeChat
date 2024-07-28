@@ -1,5 +1,6 @@
 const WebSocketServer = require('websocket').server;
 const http = require('http');
+const { type } = require('os');
 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
@@ -9,12 +10,14 @@ const MESSAGE_TYPES = {
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   FINALIZE: 'FINALIZE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
-  GET_CHATS: 'GET_CHATS', //obtener chats
-  GET_CHATS2:'GET_CHATS', //obtener chats
+  GET_CHATS: 'GET_CHATS',
+  GET_CHATS2:'GET_CHATS',
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
+  CREATE_ADMIN: 'CREATE_ADMIN',
+  GET_ADMINS: 'GET_ADMINS',
   DELETE_CHAT: 'DELETE_CHAT'
 };
 
@@ -65,8 +68,8 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.REPORT_MESSAGE:
           await handleReportMessage(connection, msg);
           break;
-          case MESSAGE_TYPES.FINALIZE:
-            await handleMessage(connection, msg);
+        case MESSAGE_TYPES.FINALIZE:
+          await handleMessage(connection, msg);
           break;
         case MESSAGE_TYPES.REDIRECT_CHAT:
           await handleRedirectChat(connection, msg);
@@ -76,10 +79,10 @@ webSocketServer.on('request', (request) => {
           break;
         case MESSAGE_TYPES.GET_CHATS2:
           await handleGetChats2(msg.area_id);
-         break;
+          break;
         case MESSAGE_TYPES.GET_CHATS_CLIENT:
           await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
-          break;            
+          break; 
         case MESSAGE_TYPES.GET_CHAT_MESSAGES:
           await handleGetChatMessages(connection, msg);
           break;
@@ -91,6 +94,12 @@ webSocketServer.on('request', (request) => {
           break;
         case MESSAGE_TYPES.DELETE_CHAT:
           await handleDeleteChat(msg);
+          break;
+        case MESSAGE_TYPES.GET_ADMINS:
+          await handleShowAdminList(connection, msg);
+          break;
+        case MESSAGE_TYPES.CREATE_ADMIN:
+          await handleCreateAdmin(connection, msg);
           break;
         default:
           console.log('Unknown message type:', msg.type);
@@ -105,27 +114,36 @@ webSocketServer.on('request', (request) => {
   });
 });
 
+
 async function handleLogin(connection, msg) {
   console.log('Processing LOGIN');
   try {
-    const response = await fetchWrapper(`${API_BASE_URL}/authenticate.php`, {
+    let url = `${API_BASE_URL}/auth_user.php`;
+    let body = { email_or_name: msg.email_or_name };
+
+    if (msg.password) {
+      url = `${API_BASE_URL}/auth_admin.php`;
+      body.password = msg.password;
+    }
+
+    const response = await fetchWrapper(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ email_or_name: msg.email_or_name }),
+      body: new URLSearchParams(body),
     });
 
     if (!response.ok) throw new Error('Network response was not ok');
     
     const authData = await response.json();
     console.log('Auth data:', authData);
-
     connection.role = authData.role;
     connection.user_id = authData.user_id;
     connection.name = authData.name;
     connection.area_id = authData.area_id;
+    connection.type_admin = authData.type_admin
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin }));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name}));
       connection.sendUTF(JSON.stringify({
@@ -141,6 +159,43 @@ async function handleLogin(connection, msg) {
   }
 }
 
+
+async function handleShowAdminList(connection, msg) {
+  console.log('Received message:', msg); // Agregado para depuración
+
+  try {
+    if (!msg.user_mom_id) {
+      throw new Error('user_mom_id no está definido en el mensaje recibido');
+    }
+
+    const url = `${API_BASE_URL}/obtener_admins.php`;
+    const params = new URLSearchParams({ user_mom_id: msg.user_mom_id });
+
+    const response = await fetch(`${url}?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error en la respuesta: ${response.statusText}`);
+    }
+
+    // Asegúrate de que estás utilizando la variable correcta
+    const admins = await response.json();
+    
+    // Verifica si el resultado es un array anidado
+    if (Array.isArray(admins) && Array.isArray(admins[0])) {
+      // Aplana el array
+      const flattenedAdmins = admins.flat();
+      connection.sendUTF(JSON.stringify({ type: 'GET_ADMINS', admins: flattenedAdmins }));
+    } else {
+      connection.sendUTF(JSON.stringify({ type: 'GET_ADMINS', admins }));
+    }
+
+  } catch (error) {
+    console.error('Error al mostrar usuarios:', error);
+  }
+}
 
 
 async function handleSelectArea(connection, msg) {
@@ -189,6 +244,7 @@ async function getOrCreateChat(connection) {
     return newChatData;
   }
 }
+
 
 function notifyAdminsAboutNewChat(connection, chat_id) {
   webSocketServer.connections.forEach((conn) => {
@@ -253,7 +309,7 @@ async function handleReportMessage(connection, msg) {
         text: msg.message.text,
         owner_id: msg.owner_id,
         role: 'system',
-        IsAdmin: msg.IsAdmin,
+        IsAdmin: msg.IsAdmin
       }),
     });
 
@@ -299,9 +355,14 @@ async function handleRedirectChat(connection, msg) {
 }
 
 async function handleGetChats(connection) {
-  console.log('handleGetChats called for user:', connection.user_id);
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id);
   if (connection.role !== 'admin') {
-    console.log('User is not admin, aborting GET_CHATS');
+    console.log('User is not admin, aborting GET_CHATS. User details:', {
+      user_id: connection.user_id,
+      role: connection.role,
+      area_id: connection.area_id,
+      name: connection.name
+    });
     return;
   }
   console.log('Processing GET_CHATS for area_id:', connection.area_id);
@@ -362,7 +423,6 @@ async function handleGetChatsClient(connection, chat_id) {
     console.error('Error fetching client chats:', error);
   }
 }
-
 
 async function handleMarkAsRead(msg) {
   console.log('Processing MARK_AS_READ:', msg);

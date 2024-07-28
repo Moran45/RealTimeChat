@@ -10,17 +10,7 @@
 }
 
 .admin-header {
-  background-color: #007bff;
-  color: white;
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  width: 100% !important;
-}
-.admin-header-blue {
-  background-color: #17a2b8; /* Cambia a un azul diferente si lo prefieres */
+  background-color: #5d3e8a !important; /* Morado oscuro */
   color: white;
   padding: 15px;
   display: flex;
@@ -64,7 +54,7 @@
 
 .admin-chat-item:hover,
 .admin-chat-item.bg-info {
-  background-color: #007bff;
+  background-color: #5d3e8a !important; /* Morado oscuro */
   color: white;
 }
 
