@@ -137,6 +137,8 @@ function Admin() {
           }
           return prevClients;
         });
+      } else if (msg.type === 'GET_ADMINS') {
+        setAdminList(msg.admins);
       } else {
         setMessages((prevMessages) => {
           const updatedMessages = { ...prevMessages };
@@ -216,12 +218,13 @@ function Admin() {
   };
 
   const handleShowAdminList = () => {
-    const fetchAdmins = () => {
-      ws.send(JSON.stringify({ type: 'GET_ADMINS' }));
+    const storedId = localStorage.getItem('user_id');
+    const message = {
+      type: 'GET_ADMINS',
+      user_mom_id: storedId
     };
-  
-    fetchAdmins();
-  };
+    ws.send(JSON.stringify(message));
+  };  
   
 
   const handleInputChange = (e) => {
@@ -419,7 +422,7 @@ function Admin() {
       </div>
       <div className="modal-footer">
         <button type="button" className="btn btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancelar</button>
-        <button type="button" className="btn btn-primary" onClick={handleCreateUser}>Crear Usuario</button>
+        <button type="button" className="btn btn-primary" onClick={handleCreateUser}>Crear usuario</button>
       </div>
     </div>
   </div>
@@ -428,10 +431,10 @@ function Admin() {
         <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3`}>
         <h2>Chats</h2>
         <p>{welcomeMessage}</p>
-        {user && user.type_admin === 'Full' && (
+        {user && user.type_admin === 'Full' && ( 
  <>
  <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
- <button className="btn btn-light ml-2">Lista de admins</button>
+ <button className="btn btn-light ml-2" onClick={handleShowAdminList}>Lista de admins</button>
 </>
   )}
       </div>

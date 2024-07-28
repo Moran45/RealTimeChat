@@ -96,7 +96,7 @@ webSocketServer.on('request', (request) => {
           await handleDeleteChat(msg);
           break;
         case MESSAGE_TYPES.GET_ADMINS:
-          await handleShowAdminList(connection);
+          await handleShowAdminList(connection, msg);
           break;
         case MESSAGE_TYPES.CREATE_ADMIN:
           await handleCreateAdmin(connection, msg);
@@ -159,65 +159,43 @@ async function handleLogin(connection, msg) {
   }
 }
 
-async function handleGetAdmins(connection) {
+
+async function handleShowAdminList(connection, msg) {
+  console.log('Received message:', msg); // Agregado para depuración
+
   try {
-    const response = await fetchWrapper(`${API_BASE_URL}/obtener_admins.php`, {
+    if (!msg.user_mom_id) {
+      throw new Error('user_mom_id no está definido en el mensaje recibido');
+    }
+
+    const url = `${API_BASE_URL}/obtener_admins.php`;
+    const params = new URLSearchParams({ user_mom_id: msg.user_mom_id });
+
+    const response = await fetch(`${url}?${params.toString()}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }
     });
-    const data = await response.json();
-    connection.sendUTF(JSON.stringify({ type: 'ADMINS_LIST', admins: data.admins }));
+
+    if (!response.ok) {
+      throw new Error(`Error en la respuesta: ${response.statusText}`);
+    }
+
+    // Asegúrate de que estás utilizando la variable correcta
+    const admins = await response.json();
+    
+    // Verifica si el resultado es un array anidado
+    if (Array.isArray(admins) && Array.isArray(admins[0])) {
+      // Aplana el array
+      const flattenedAdmins = admins.flat();
+      connection.sendUTF(JSON.stringify({ type: 'GET_ADMINS', admins: flattenedAdmins }));
+    } else {
+      connection.sendUTF(JSON.stringify({ type: 'GET_ADMINS', admins }));
+    }
+
   } catch (error) {
-    console.error('Error fetching admins:', error);
+    console.error('Error al mostrar usuarios:', error);
   }
 }
-const handleShowAdminList = async () => {
-  try {
-    const response = await fetchWrapper(`${API_BASE_URL}/obtener_admins.php`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const data = await response.json();
-    setAdminList(data.admins);
-    setShowAdminListModal(true);
-  } catch (error) {
-    console.error('Error fetching admin list:', error);
-  }
-};
-
-async function handleCreateAdmin(connection, msg) {
-  try {
-    const url = `${API_BASE_URL}/create_admin.php`;
-    const body = JSON.stringify({
-      name: msg.name,
-      email: msg.email,
-      area_id: msg.area_id,
-      contrasena: msg.contrasena,
-      type_admin: msg.type_admin,
-      user_mom: msg.user_mom,
-      user_mom_id: msg.user_mom_id
-    });
-
-    // Asegúrate de que fetchWrapper esté bien definido
-    const response = await fetchWrapper(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body
-    });
-
-    // Asegúrate de que la respuesta esté en formato JSON
-    const result = await response.json();
-
-    // Asegúrate de que `sendUTF` es el método correcto para enviar datos
-    connection.sendUTF(JSON.stringify(result));
-
-  } catch (error) {
-    console.error('Error creating admin:', error);
-    // Maneja los errores enviando una respuesta adecuada
-    connection.sendUTF(JSON.stringify({ success: false, message: 'Failed to create admin' }));
-  }
-}
-
 
 
 async function handleSelectArea(connection, msg) {
@@ -266,6 +244,7 @@ async function getOrCreateChat(connection) {
     return newChatData;
   }
 }
+
 
 function notifyAdminsAboutNewChat(connection, chat_id) {
   webSocketServer.connections.forEach((conn) => {
