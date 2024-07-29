@@ -440,15 +440,19 @@ function Admin() {
           </div>
         </div>
       )}
-      <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3`}>
-        <h2>Chats</h2>
-        <p>{welcomeMessage}</p>
-        {user && user.type_admin === 'Full' && (
-          <>
-            <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
-            <button className="btn btn-light ml-2" onClick={() => { setShowAdminListModal(true); handleShowAdminList(); }}>Lista de admins</button>
-          </>
-        )}
+      <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3 d-flex justify-content-between align-items-center`}>
+        <div className="header-left">
+          <h2>Chats</h2>
+          <p>{welcomeMessage}</p>
+        </div>
+        <div className="header-right">
+          {user && user.type_admin === 'Full' && (
+            <>
+              <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
+              <button className="btn btn-light ml-2" onClick={() => { setShowAdminListModal(true); handleShowAdminList(); }}>Lista de admins</button>
+            </>
+          )}
+        </div>
       </div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
@@ -516,6 +520,10 @@ function Admin() {
                 />
                 <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={isChatFinalized(selectedChat.chat_id)}>Enviar</button>
                 <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isChatFinalized(selectedChat.chat_id)}>Finalizar Reporte</button>
+                <label className="file-upload-label">
+                  Subir Archivo
+                  <input type="file" className="file-upload-input" />
+                </label>
               </div>
             </>
           ) : (

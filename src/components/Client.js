@@ -19,7 +19,6 @@ function Client() {
   const messagesEndRef = useRef(null);
   const [isDisabled, setIsDisabled] = useState(false);
 
-
   useEffect(() => {
     const storedUserClient = {
       user_id: localStorage.getItem('user_id_client'),
@@ -27,7 +26,7 @@ function Client() {
       name: localStorage.getItem('name_client'),
       email_or_name: localStorage.getItem('name_client'),
     };
-  
+
     if (storedUserClient.user_id && storedUserClient.name) {
       setUserClient(storedUserClient);
       if (ws) {
@@ -37,14 +36,14 @@ function Client() {
       navigate('/'); // Redirigir al login si no hay información de usuario
     }
   }, [ws, navigate]);
-  
+
   useEffect(() => {
     const storedAreaId = localStorage.getItem('area_id_client');
     if (storedAreaId) {
       setSelectedArea(storedAreaId);
     }
   }, []);
-  
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -123,7 +122,7 @@ function Client() {
 
   useEffect(() => {
     const storedChatId = localStorage.getItem('chat_id_client'); // Recuperar chat_id de localStorage
-  
+
     console.log('hola' + storedChatId)
 
   }, [ws]);
@@ -148,7 +147,7 @@ function Client() {
       type: 'SELECT_AREA',
       area_id: areaId,
     }));
-  
+
     // Enviar mensaje al chat sobre la selección del área
     const message = {
       type: 'MESSAGE',
@@ -156,18 +155,18 @@ function Client() {
       chat_id: chatId,
       owner_id: userId,
       IsAdmin: 0,
-      area_id : selectedArea,
+      area_id: selectedArea,
       timestamp: new Date().toISOString()
     };
-    
+
     // Enviar mensaje al servidor
     ws.send(JSON.stringify(message));
-  
+
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
   };
-  
+
   const handleLogin = (storedUserClient) => {
     const handleLoginResponse = (event) => {
       const msg = JSON.parse(event.data);
@@ -176,7 +175,7 @@ function Client() {
           type: 'GET_CHATS_CLIENT',
           chat_id: localStorage.getItem('chat_id_client')
         }));
-  
+
         ws.addEventListener('message', (event) => {
           const msg = JSON.parse(event.data);
           if (msg.type === 'CHATS_CLIENT') {
@@ -192,28 +191,28 @@ function Client() {
             }
           }
         });
-  
+
         ws.removeEventListener('message', handleLoginResponse);
       } else if (msg.type === 'LOGIN_FAILURE') {
         navigate('/'); // Redirigir al login si el login falla
         ws.removeEventListener('message', handleLoginResponse);
       }
     };
-  
+
     ws.addEventListener('message', handleLoginResponse);
-  
+
     ws.send(JSON.stringify({
       type: 'LOGIN',
       ...storedUserClient
     }));
-  };  
+  };
 
   const handleSendMessage = () => {
-    if (!ws || !selectedArea ) {
+    if (!ws || !selectedArea) {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-    
+
     console.log(localStorage.getItem('name_client'))
     console.log(localStorage.getItem('chat_id_client'))
     // Evitar enviar el mensaje dos veces
@@ -222,12 +221,12 @@ function Client() {
       text: messageInput,
       chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
-      area_id : selectedArea,
+      area_id: selectedArea,
       IsAdmin: 0
     };
     ws.send(JSON.stringify(message));  //aqui es donde se envia el mensaje y se muestra en pantalla
     setMessageInput('');
-    
+
     if (!intervalId) {
       startFetchingUnreadOwnersCount();
     }
@@ -245,7 +244,7 @@ function Client() {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-  
+
     // Verificar si el área ya está seleccionada
     if (selectedArea === null) {
       handleSelectArea(3, 'Reporte realizado con éxito');
@@ -257,19 +256,19 @@ function Client() {
         chat_id: chatId,
         owner_id: userId,
         IsAdmin: 0,
-        area_id : selectedArea,
+        area_id: selectedArea,
         timestamp: new Date().toISOString()
       };
       ws.send(JSON.stringify(message));
     }
-  
+
     setTimeout(() => {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
       }));
     }, 500);
-  
+
     try {
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
         method: 'POST',
@@ -280,10 +279,10 @@ function Client() {
           user_id: userId,
         }),
       });
-  
+
       const text = await response.text();
       const data = JSON.parse(text);
-  
+
       if (data.error) {
         console.error('Error al hacer el reporte:', data.error);
       } else {
@@ -294,27 +293,47 @@ function Client() {
           role: 'system',
           timestamp: data.report.timestamp,
           chat_id: chatId,
-          area_id : selectedArea,
+          area_id: selectedArea,
           owner_id: userId,
         };
-  
+
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
           timestamp: data.report.timestamp,
           user_id: userId,
           chat_id: chatId,
-          area_id : selectedArea,
+          area_id: selectedArea,
           owner_id: userId,
         }));
       }
     } catch (error) {
       console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
-  };  
+  };
 
   const toggleChat = () => {
     setShowChat(!showChat);
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const message = {
+          type: 'FILE',
+          content: reader.result,
+          fileName: file.name,
+          chat_id: chatId,
+          owner_id: localStorage.getItem('user_id'),
+          area_id: selectedArea,
+          IsAdmin: 0
+        };
+        ws.send(JSON.stringify(message));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -351,6 +370,10 @@ function Client() {
               disabled={isDisabled} // Deshabilitar input
             />
             <button className="btn btn-success" onClick={handleSendMessage} disabled={isDisabled}>Enviar</button>
+            <label className="btn btn-primary">
+              Subir archivo
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+            </label>
           </div>
           {showQuestions && (
             <div className="Client-question-buttons mt-3">
