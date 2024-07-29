@@ -24,7 +24,7 @@ if (empty($user_mom_id)) {
 }
 
 // Preparar la consulta con la cláusula WHERE
-$sql = "SELECT name, email, area_id, contrasena, type_admin FROM admin WHERE user_mom_id = ?";
+$sql = "SELECT id, name, email, area_id, contrasena, type_admin FROM admin WHERE user_mom_id = ?";
 $stmt = $conn->prepare($sql);
 if (!$stmt) {
     echo json_encode(['error' => 'Error en la preparación de la consulta: ' . $conn->error]);

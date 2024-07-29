@@ -318,6 +318,64 @@ function Admin() {
 
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
+  // Funciones para manejar cambios y actualizaciones
+const handleChange = (e, index, field) => {
+  const updatedAdminList = [...adminList];
+  updatedAdminList[index][field] = e.target.value;
+  setAdminList(updatedAdminList);
+};
+
+const handleUpdate = (id, updatedAdmin) => {
+  // Agregar el id al objeto updatedAdmin para que el servidor sepa qué registro actualizar
+  const adminToUpdate = { ...updatedAdmin, id };
+
+  // Lógica para enviar los datos actualizados al servidor
+  fetch('https://phmsoft.tech/Ultimochatlojuro/edit_admins.php', {
+    method: 'POST', // O 'PATCH', dependiendo de la API
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(adminToUpdate),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Manejar el éxito
+        console.log('Admin actualizado:', data);
+        // Opcional: Actualizar el estado local si es necesario
+      } else {
+        // Manejar el error
+        console.error('Error al actualizar el admin:', data.error);
+      }
+    })
+    .catch(error => {
+      // Manejar errores de red u otros errores
+      console.error('Error en la solicitud:', error);
+    });
+};
+
+
+const handleDelete = (id) => {
+  // Lógica para eliminar el admin
+  fetch('https://phmsoft.tech/Ultimochatlojuro/delate_admins.php', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Manejar el éxito, por ejemplo, eliminar el admin de la lista
+        setAdminList(adminList.filter(admin => admin.id !== id));
+      } else {
+        // Manejar el error
+        console.error('Error al eliminar el admin:', data.error);
+      }
+    });
+};
+
   return ( 
     <div className="admin-container">
 {showAdminListModal && <div className="modal-backdrop fade show"></div>}
@@ -378,18 +436,69 @@ function Admin() {
         <div>
         {adminList.length > 0 && (
       <div>
-        <p>Lista de admins</p>
-        <ul>
-          {adminList.map((admin, index) => (
-            <li key={index} style={{ marginBottom: '10px' }}>
-              <div><strong>Nombre:</strong> {admin.name}</div>
-              <div><strong>Email:</strong> {admin.email}</div>
-              <div><strong>Área:</strong> {admin.area_id}</div>
-              <div><strong>Tipo Admin:</strong> {admin.type_admin}</div>
-              <div><strong>Contraseña:</strong> {admin.contrasena}</div>
-            </li>
-          ))}
-        </ul>
+      <p>Lista de admins</p>
+{adminList.map((admin, index) => (
+  <ul key={index}>
+    <li style={{ marginBottom: '10px' }}>
+      <div>
+        <strong>ID:</strong> {admin.id}
+      </div>
+      <div>
+        <strong>Nombre:</strong>
+        <input
+          type="text"
+          value={admin.name}
+          onChange={(e) => handleChange(e, index, 'name')}
+        />
+      </div>
+      <div>
+        <strong>Email:</strong>
+        <input
+          type="email"
+          value={admin.email}
+          onChange={(e) => handleChange(e, index, 'email')}
+        />
+      </div>
+      <div>
+        <strong>Área:</strong>
+        <input
+          type="number"
+          value={admin.area_id}
+          onChange={(e) => handleChange(e, index, 'area_id')}
+        />
+      </div>
+      <div>
+        <strong>Tipo Admin:</strong>
+        <input
+          type="text"
+          value={admin.type_admin}
+          onChange={(e) => handleChange(e, index, 'type_admin')}
+        />
+      </div>
+      <div>
+        <strong>Contraseña:</strong>
+        <input
+          type="password"
+          value={admin.contrasena}
+          onChange={(e) => handleChange(e, index, 'contrasena')}
+        />
+      </div>
+      <button
+        className="btn btn-danger"
+        onClick={() => handleDelete(admin.id)}
+      >
+        Eliminar
+      </button>
+      <button
+        className="btn btn-success"
+        onClick={() => handleUpdate(admin.id, admin)}
+      >
+        Guardar Cambios
+      </button>
+    </li>
+  </ul>
+))}
+
       </div>
     )}
 </div>
