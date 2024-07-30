@@ -424,6 +424,39 @@ async function handleGetChatsClient(connection, chat_id) {
   }
 }
 
+async function handleCreateAdmin(connection, msg) {
+  try {
+    const url = `${API_BASE_URL}/create_admin.php`;
+    const body = JSON.stringify({
+      name: msg.name,
+      email: msg.email,
+      area_id: msg.area_id,
+      contrasena: msg.contrasena,
+      type_admin: msg.type_admin,
+      user_mom: msg.user_mom,
+      user_mom_id: msg.user_mom_id
+    });
+
+    // Asegúrate de que fetchWrapper esté bien definido
+    const response = await fetchWrapper(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+
+    // Asegúrate de que la respuesta esté en formato JSON
+    const result = await response.json();
+
+    // Asegúrate de que `sendUTF` es el método correcto para enviar datos
+    connection.sendUTF(JSON.stringify(result));
+
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    // Maneja los errores enviando una respuesta adecuada
+    connection.sendUTF(JSON.stringify({ success: false, message: 'Failed to create admin' }));
+  }
+}
+
 async function handleMarkAsRead(msg) {
   console.log('Processing MARK_AS_READ:', msg);
   try {

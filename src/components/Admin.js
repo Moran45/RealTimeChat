@@ -19,10 +19,12 @@ function Admin() {
   const [adminList, setAdminList] = useState([]); // Setear lista de admins
   const [showModal, setShowModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false); // Modal de confirmación para guardar cambios
+  const [showConfirmationModalCreate, setShowConfirmationModalCreate] = useState(false); // Modal de confirmación para guardar cambios
   const [sortOrder, setSortOrder] = useState('desc');
   const [showRedirectButtons, setShowRedirectButtons] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
+  const [editingAdminIndex, setEditingAdminIndex] = useState(null);
   const [newUserData, setNewUserData] = useState({
     user_id: '',
     name: '',
@@ -365,13 +367,18 @@ function Admin() {
       });
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = (index) => {
     setShowConfirmationModal(true);
+    setEditingAdminIndex(index);
   };
 
-  const confirmSaveChanges = (adminId, adminData) => {
-    handleUpdate(adminId, adminData);
-    setShowConfirmationModal(false);
+  const confirmSaveChanges = () => {
+    if (editingAdminIndex !== null) {
+      const adminToUpdate = adminList[editingAdminIndex];
+      handleUpdate(adminToUpdate.id, adminToUpdate);
+      setShowConfirmationModal(false);
+      setEditingAdminIndex(null);
+    }
   };
 
   return (
@@ -413,19 +420,19 @@ function Admin() {
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancelar</button>
-              <button type="button" className="btn btn-primary" onClick={() => setShowConfirmationModal(true)}>Crear usuario</button>
+              <button type="button" className="btn btn-primary" onClick={() => setShowConfirmationModalCreate(true)}>Crear usuario</button>
             </div>
           </div>
         </div>
       </div>
       {showCreateUserModal && <div className="modal-backdrop fade show"></div>}
-      {showConfirmationModal && (
+      {showConfirmationModalCreate && (
         <div className="modal d-block" tabIndex="-1" role="dialog">
           <div className="modal-dialog" role="document">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Confirmación</h5>
-                <button type="button" className="close" onClick={() => setShowConfirmationModal(false)} aria-label="Close">
+                <button type="button" className="close" onClick={() => setShowConfirmationModalCreate(false)} aria-label="Close">
                   <span aria-hidden="true">&times;</span>
                 </button>
               </div>
@@ -433,7 +440,7 @@ function Admin() {
                 <p>¿Estás seguro de que deseas crear este usuario?</p>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowConfirmationModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowConfirmationModalCreate(false)}>Cancelar</button>
                 <button type="button" className="btn btn-primary" onClick={handleCreateUser}>Confirmar</button>
               </div>
             </div>
@@ -589,7 +596,7 @@ function Admin() {
                       <input type="password" className="form-control" value={admin.contrasena} onChange={(e) => handleChange(e, index, 'contrasena')} />
                     </div>
                     <button className="btn btn-danger me-2" onClick={() => handleDelete(admin.id)}>Eliminar</button>
-                    <button className="btn btn-success" onClick={() => handleSaveChanges()}>Guardar Cambios</button>
+                    <button className="btn btn-success" onClick={() => handleSaveChanges(index)}>Guardar Cambios</button>
                   </div>
                 ))}
               </div>
@@ -612,7 +619,7 @@ function Admin() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowConfirmationModal(false)}>Cancelar</button>
-                <button type="button" className="btn btn-primary" onClick={() => confirmSaveChanges(adminList[0].id, adminList[0])}>Confirmar</button>
+                <button type="button" className="btn btn-primary" onClick={confirmSaveChanges}>Confirmar</button>
               </div>
             </div>
           </div>
