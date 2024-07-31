@@ -321,8 +321,10 @@ function Client() {
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
+        const fileDataUrl = reader.result;
         const message = {
-          type: 'FILE',
+          type: 'MESSAGE',
+          text: fileDataUrl,
           content: reader.result,
           fileName: file.name,
           chat_id: chatId,
@@ -335,6 +337,7 @@ function Client() {
       reader.readAsDataURL(file);
     }
   };
+
 
   return (
     <div className="Client-container">
@@ -349,16 +352,24 @@ function Client() {
           </button>
           <h2>Chat {unreadOwnersCount > 0 && `Lugar en cola aproximado: ${unreadOwnersCount}`}</h2>
           <div className="Client-messages">
-            {messages.map((msg, index) => (
-              <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
-                <div className="Client-message-content">
-                  <div>{msg.text}</div>
-                  <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+  {messages.map((msg, index) => (
+    <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
+      <div className="Client-message-content">
+      {msg.text.startsWith('data:image/') ? (
+          // Si hay un nombre de archivo, asumimos que es una imagen
+          <div>
+            <img src={msg.text} alt={msg.fileName} className="Client-message-image" />
           </div>
+        ) : (
+          <div>{msg.text}</div>
+        )}
+        <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
+
           <div className="Client-message-input">
             <input
               type="text"

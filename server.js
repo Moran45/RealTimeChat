@@ -1,6 +1,7 @@
 const WebSocketServer = require('websocket').server;
 const http = require('http');
 const { type } = require('os');
+const { Await } = require('react-router-dom');
 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
@@ -13,6 +14,7 @@ const MESSAGE_TYPES = {
   GET_CHATS: 'GET_CHATS',
   GET_CHATS2:'GET_CHATS',
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
+  FILE:'FILE',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -101,6 +103,10 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.CREATE_ADMIN:
           await handleCreateAdmin(connection, msg);
           break;
+        case MESSAGE_TYPES.FILE:
+            // Manejar los mensajes de archivo
+           await handleFileMessage(msg, connection);
+            break;
         default:
           console.log('Unknown message type:', msg.type);
       }
@@ -294,6 +300,47 @@ async function handleMessage(connection, msg) {
     console.error('Error in handleMessage:', error);
   }
 }
+
+async function handleFileMessage(connection, msg) {
+  console.log('Processing FILE MESSAGE:', msg);
+  try {
+    const chat_id = msg.chat_id || connection.chat_id;
+    if (!chat_id) throw new Error('Chat ID is null. Cannot save file message.');
+
+    // Crear un nuevo objeto FormData
+    const formData = new FormData();
+    formData.append('chat_id', chat_id);
+    formData.append('owner_id', connection.user_id || msg.owner_id);
+    formData.append('IsAdmin', msg.IsAdmin);
+
+    // Asumimos que `msg.file` es el archivo que deseas subir
+    if (msg.file) {
+      formData.append('image', msg.file);
+    } else {
+      throw new Error('No file found in message');
+    }
+
+    // Enviar la solicitud con fetch
+    const response = await fetchWrapper(`${API_BASE_URL}/upload_images.php`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const savedFile = await response.json();
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.chat_id === chat_id) {
+        conn.sendUTF(JSON.stringify({ type: 'FILE_RECEIVED', file: savedFile }));
+      }
+    });
+  } catch (error) {
+    console.error('Error handling file message:', error);
+    // Aquí podrías enviar un mensaje de error a través de WebSocket si es necesario
+  }
+}
+
+
 
 async function handleReportMessage(connection, msg) {
   console.log('Processing REPORT_MESSAGE:', msg);

@@ -381,6 +381,28 @@ function Admin() {
     }
   };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileDataUrl = reader.result;
+        const message = {
+          type: 'MESSAGE',
+          text: fileDataUrl,
+          content: reader.result,
+          fileName: file.name,
+          chat_id: selectedChat.chat_id,
+          owner_id: localStorage.getItem('user_id'),
+          IsAdmin: 1
+        };
+        ws.send(JSON.stringify(message));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+
   return (
     <div className="admin-container">
       {showAdminListModal && <div className="modal-backdrop fade show"></div>}
@@ -501,20 +523,28 @@ function Admin() {
                 )}
               </div>
               <div className="admin-chat-messages p-3 border rounded mb-3">
-                {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-                    <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'FINALIZE' || msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'admin-message-finalized' : ''}`}>
-                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
-                    </div>
-                    {msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 && (
-                      <div className="admin-message-separator">
-                        <strong>Reporte finalizado</strong>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+  {Array.isArray(messages) && messages.map((msg, index) => (
+    <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
+      <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'FINALIZE' || (msg.text === 'Reporte finalizado' && msg.IsAdmin === 1) ? 'admin-message-finalized' : ''}`}>
+        <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> 
+        {msg.text.startsWith('data:image/') ? (
+          // Si el mensaje comienza con 'data:image/', asumimos que es una imagen
+          <div>
+            <img src={msg.text} alt={msg.fileName || 'Imagen'} className="admin-message-image" />
+          </div>
+        ) : (
+          <div>{msg.text}</div>
+        )}
+      </div>
+      {msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 && (
+        <div className="admin-message-separator">
+          <strong>Reporte finalizado</strong>
+        </div>
+      )}
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
               <div className="admin-chat-input d-flex align-items-center">
                 <input
                   type="text"
@@ -529,7 +559,7 @@ function Admin() {
                 <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isChatFinalized(selectedChat.chat_id)}>Finalizar Reporte</button>
                 <label className="file-upload-label">
                   Subir Archivo
-                  <input type="file" className="file-upload-input" />
+                  <input type="file"  onClick={handleFileUpload}/>
                 </label>
               </div>
             </>
