@@ -169,3 +169,7 @@
     max-width: 100%;
   }
 }
+.Client-message-image {
+  max-width: 100%; /* Ajusta el tamaño máximo de la imagen según tus necesidades */
+  height: auto;
+}

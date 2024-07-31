@@ -385,18 +385,45 @@ function Admin() {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        const fileDataUrl = reader.result;
-        const message = {
-          type: 'MESSAGE',
-          text: fileDataUrl,
-          content: reader.result,
-          fileName: file.name,
-          chat_id: selectedChat.chat_id,
-          owner_id: localStorage.getItem('user_id'),
-          IsAdmin: 1
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Definir el ancho máximo deseado
+          const maxWidth = 800; // Puedes ajustar este valor según tus necesidades
+          
+          let width = img.width;
+          let height = img.height;
+          
+          // Calcular las nuevas dimensiones manteniendo la proporción
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Dibujar la imagen redimensionada en el canvas
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Obtener la imagen redimensionada como DataURL
+          const resizedDataUrl = canvas.toDataURL(file.type);
+          
+          const message = {
+            type: 'MESSAGE',
+            text: resizedDataUrl,
+            content: resizedDataUrl,
+            fileName: file.name,
+            chat_id: selectedChat.chat_id,
+            owner_id: localStorage.getItem('user_id'),
+            IsAdmin: 1
+          };
+          ws.send(JSON.stringify(message));
         };
-        ws.send(JSON.stringify(message));
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
