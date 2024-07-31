@@ -12,20 +12,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 include 'db.php';
+
 $user_id = $_POST['user_id'] ?? null;
 $area_id = $_POST['area_id'] ?? null;
+$current_url = $_POST['current_url'] ?? null;
 
 if ($user_id === null) {
-    die("User ID are required.");
+    die("User ID is required.");
 }
 if ($area_id === null) {
-    die("Area ID are required.");
+    die("Area ID is required.");
+}
+if ($current_url === null) {
+    die("Current URL is required.");
 }
 
 // Buscar un chat existente
-$sql = "SELECT id FROM chats WHERE user_id = ? AND area_id = ? LIMIT 1";
+$sql = "SELECT id FROM chats WHERE user_id = ? AND area_id = ? AND current_url = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $user_id, $area_id);
+$stmt->bind_param("iis", $user_id, $area_id, $current_url); // Cambiar el tipo de dato para current_url a s (string)
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -34,9 +39,9 @@ if ($row = $result->fetch_assoc()) {
     echo json_encode(['chat_id' => $row['id']]);
 } else {
     // Crear un nuevo chat si no existe uno abierto
-    $sql = "INSERT INTO chats (user_id, area_id, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+    $sql = "INSERT INTO chats (user_id, area_id, created_at, updated_at, current_url) VALUES (?, ?, NOW(), NOW(), ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $user_id, $area_id);
+    $stmt->bind_param("iis", $user_id, $area_id, $current_url); // Cambiar el tipo de dato para current_url a s (string)
 
     if ($stmt->execute()) {
         echo json_encode(['chat_id' => $stmt->insert_id]);

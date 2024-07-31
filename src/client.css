@@ -83,6 +83,19 @@
   border-bottom-left-radius: 0;
 }
 
+.Client-message.finalized {
+  background-color: #f8d7da;
+  color: #842029;
+  text-align: center;
+  align-self: stretch; /* Hacer que el elemento ocupe todo el ancho */
+  width: 100%; /* Asegurarse de que el ancho sea el 100% del contenedor */
+  text-align: center; /* Centrar el texto */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0; /* Quitar el radio del borde inferior derecho para que coincida con el izquierdo */
+  padding: 10px; /* Añadir algo de relleno para mejorar la legibilidad */
+  box-sizing: border-box; /* Incluir el relleno y el borde en el ancho y alto total del elemento */
+}
+
 .Client-message-content {
   display: flex;
   justify-content: space-between;
@@ -112,6 +125,7 @@
 .Client-message-input button {
   padding: 10px 20px;
   border-radius: 8px;
+  margin-left: 10px;
 }
 
 .Client-question-buttons {
@@ -140,18 +154,22 @@
 /* Media queries for responsiveness */
 @media (min-width: 768px) {
   .Client-chat-window {
-    max-width: 80%;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 992px) {
   .Client-chat-window {
-    max-width: 70%;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 1200px) {
   .Client-chat-window {
-    max-width: 60%;
+    max-width: 100%;
   }
+}
+.Client-message-image {
+  max-width: 100%; /* Ajusta el tamaño máximo de la imagen según tus necesidades */
+  height: auto;
 }

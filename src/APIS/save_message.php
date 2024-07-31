@@ -21,6 +21,7 @@ $chat_id = isset($_POST['chat_id']) ? intval($_POST['chat_id']) : null;
 $text = isset($_POST['text']) ? htmlspecialchars($_POST['text'], ENT_QUOTES, 'UTF-8') : null;
 $owner_id = isset($_POST['owner_id']) ? intval($_POST['owner_id']) : null;
 $IsAdmin = isset($_POST['IsAdmin']) ? intval($_POST['IsAdmin']) : null; // Añadir el campo IsAdmin
+$chat_finalized = isset($_POST['chat_finalized']) ? intval($_POST['chat_finalized']) : 0; // Añadir el campo chat_finalized
 
 // Validar que los parámetros necesarios no estén vacíos
 if ($chat_id === null || $text === null || $owner_id === null || $IsAdmin === null) {
@@ -30,14 +31,9 @@ if ($chat_id === null || $text === null || $owner_id === null || $IsAdmin === nu
 }
 
 // Establecer el valor de status basado en IsAdmin
-if ($IsAdmin === 1) {
-    $status = 'read';
-} else {
-    // Si no es admin, mantener el valor por defecto 'unread'
-    $status = 'unread';
-}
+$status = $IsAdmin === 1 ? 'read' : 'unread';
 
-$sql = "INSERT INTO message (chat_id, text, owner_id, timestamp, status, IsAdmin) VALUES (?, ?, ?, NOW(), ?, ?)";
+$sql = "INSERT INTO message (chat_id, text, owner_id, timestamp, status, IsAdmin, chat_finalized) VALUES (?, ?, ?, NOW(), ?, ?, ?)";
 $stmt = $conn->prepare($sql);
 
 if ($stmt === false) {
@@ -46,7 +42,7 @@ if ($stmt === false) {
     exit;
 }
 
-$stmt->bind_param("isisi", $chat_id, $text, $owner_id, $status, $IsAdmin);
+$stmt->bind_param("isisii", $chat_id, $text, $owner_id, $status, $IsAdmin, $chat_finalized);
 
 if ($stmt->execute()) {
     echo json_encode([
@@ -56,7 +52,8 @@ if ($stmt->execute()) {
         'owner_id' => $owner_id,
         'timestamp' => date('Y-m-d H:i:s'),
         'status' => $status,
-        'IsAdmin' => $IsAdmin
+        'IsAdmin' => $IsAdmin,
+        'chat_finalized' => $chat_finalized
     ]);
 } else {
     echo json_encode(['error' => 'Error al guardar el mensaje']);

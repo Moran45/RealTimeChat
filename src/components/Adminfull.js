@@ -331,15 +331,6 @@ function Client() {
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Verificar el tamaño del archivo
-      const maxSizeInMB = 10;
-      const maxSizeInBytes = maxSizeInMB * 1024 * 1024; // Convertir MB a bytes
-  
-      if (file.size > maxSizeInBytes) {
-        alert('El archivo es demasiado grande. Debe ser menor de 10 MB.');
-        return; // Detener el procesamiento si el archivo es demasiado grande
-      }
-  
       try {
         // Redimensionar la imagen
         const resizedFile = await resizeImage(file, 800, 600); // 800x600 es un ejemplo, ajusta según necesites
@@ -387,7 +378,6 @@ function Client() {
       }
     }
   };
-  
   
   // Función para redimensionar la imagen
   const resizeImage = (file, maxWidth, maxHeight) => {
@@ -446,7 +436,7 @@ function Client() {
     <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
       <div className="Client-message-content">
       {msg.text.startsWith('https://phmsoft.tech/Ultimochatlojuro/images') ? (
-          //modificar la url segun su servidor donde guarden sus imagenes
+          // Si hay un nombre de archivo, asumimos que es una imagen
           <div>
             <img src={msg.text} alt={msg.fileName} className="Client-message-image" />
           </div>
