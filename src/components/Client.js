@@ -316,28 +316,96 @@ function Client() {
     setShowChat(!showChat);
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const fileDataUrl = reader.result;
+      try {
+        // Redimensionar la imagen
+        const resizedFile = await resizeImage(file, 800, 600); // 800x600 es un ejemplo, ajusta según necesites
+  
+        // Crear un objeto FormData para enviar la imagen redimensionada
+        const formData = new FormData();
+        formData.append('image', resizedFile, file.name);
+  
+        // Enviar la imagen redimensionada a la API
+        const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/upload_images.php', {
+          method: 'POST',
+          body: formData
+        });
+  
+        if (!response.ok) {
+          throw new Error('Error al subir la imagen');
+        }
+  
+        // Obtener la respuesta JSON de la API
+        const data = await response.json();
+  
+        if (data.error) {
+          throw new Error(data.error);
+        }
+  
+        // La URL de la imagen devuelta por la API
+        const imageUrl = data.image_url;
+  
+        // Crear el mensaje con la URL de la imagen
         const message = {
           type: 'MESSAGE',
-          text: fileDataUrl,
-          content: reader.result,
+          text: imageUrl,  // Usar la URL de la imagen en lugar del Data URL
+          content: imageUrl,  // Puedes ajustar esto si necesitas un formato diferente
           fileName: file.name,
           chat_id: chatId,
           owner_id: localStorage.getItem('user_id'),
           area_id: selectedArea,
           IsAdmin: 0
         };
+  
+        // Enviar el mensaje a través del WebSocket
         ws.send(JSON.stringify(message));
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error en la carga de archivos:', error);
+      }
     }
   };
-
+  
+  // Función para redimensionar la imagen
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+  
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+  
+          canvas.width = width;
+          canvas.height = height;
+  
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+  
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: file.type }));
+          }, file.type);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  
 
   return (
     <div className="Client-container">
@@ -355,7 +423,7 @@ function Client() {
   {messages.map((msg, index) => (
     <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
       <div className="Client-message-content">
-      {msg.text.startsWith('data:image/') ? (
+      {msg.text.startsWith('https://phmsoft.tech/Ultimochatlojuro/images') ? (
           // Si hay un nombre de archivo, asumimos que es una imagen
           <div>
             <img src={msg.text} alt={msg.fileName} className="Client-message-image" />

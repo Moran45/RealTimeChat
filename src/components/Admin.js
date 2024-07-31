@@ -381,52 +381,93 @@ function Admin() {
     }
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
+      try {
+        // Redimensionar la imagen
+        const resizedFile = await resizeImage(file, 800, 600); // 800x600 es un ejemplo, ajusta según necesites
+  
+        // Crear un objeto FormData para enviar la imagen redimensionada
+        const formData = new FormData();
+        formData.append('image', resizedFile, file.name);
+  
+        // Enviar la imagen redimensionada a la API
+        const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/upload_images.php', {
+          method: 'POST',
+          body: formData
+        });
+  
+        if (!response.ok) {
+          throw new Error('Error al subir la imagen');
+        }
+  
+        // Obtener la respuesta JSON de la API
+        const data = await response.json();
+  
+        if (data.error) {
+          throw new Error(data.error);
+        }
+  
+        // La URL de la imagen devuelta por la API
+        const imageUrl = data.image_url;
+  
+        // Crear el mensaje con la URL de la imagen
+        const message = {
+          type: 'MESSAGE',
+          text: imageUrl,
+          content: imageUrl,
+          fileName: file.name,
+          chat_id: selectedChat.chat_id,
+          owner_id: localStorage.getItem('user_id'),
+          IsAdmin: 1
+        };
+  
+        // Enviar el mensaje a través del WebSocket
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Error en la carga de archivos:', error);
+      }
+    }
+  };
+  
+  // Función para redimensionar la imagen
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          // Definir el ancho máximo deseado
-          const maxWidth = 800; // Puedes ajustar este valor según tus necesidades
-          
           let width = img.width;
           let height = img.height;
-          
-          // Calcular las nuevas dimensiones manteniendo la proporción
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
+  
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
           }
-          
+  
           canvas.width = width;
           canvas.height = height;
-          
-          // Dibujar la imagen redimensionada en el canvas
+  
+          const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          
-          // Obtener la imagen redimensionada como DataURL
-          const resizedDataUrl = canvas.toDataURL(file.type);
-          
-          const message = {
-            type: 'MESSAGE',
-            text: resizedDataUrl,
-            content: resizedDataUrl,
-            fileName: file.name,
-            chat_id: selectedChat.chat_id,
-            owner_id: localStorage.getItem('user_id'),
-            IsAdmin: 1
-          };
-          ws.send(JSON.stringify(message));
+  
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: file.type }));
+          }, file.type);
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
 
@@ -554,7 +595,7 @@ function Admin() {
     <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
       <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'FINALIZE' || (msg.text === 'Reporte finalizado' && msg.IsAdmin === 1) ? 'admin-message-finalized' : ''}`}>
         <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> 
-        {msg.text.startsWith('data:image/') ? (
+        {msg.text.startsWith('https://phmsoft.tech/Ultimochatlojuro/images') ? (
           // Si el mensaje comienza con 'data:image/', asumimos que es una imagen
           <div>
             <img src={msg.text} alt={msg.fileName || 'Imagen'} className="admin-message-image" />
@@ -584,10 +625,10 @@ function Admin() {
                 />
                 <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={isChatFinalized(selectedChat.chat_id)}>Enviar</button>
                 <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isChatFinalized(selectedChat.chat_id)}>Finalizar Reporte</button>
-                <label className="file-upload-label">
-                  Subir Archivo
-                  <input type="file"  onClick={handleFileUpload}/>
-                </label>
+                <label className="btn btn-primary">
+              Subir archivo
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+            </label>
               </div>
             </>
           ) : (
