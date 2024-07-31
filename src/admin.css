@@ -19,8 +19,9 @@
   flex-wrap: wrap;
   width: 100% !important;
 }
+
 .admin-header-blue {
-  background-color: #17a2b8; /* Cambia a un azul diferente si lo prefieres */
+  background-color: #6f42c1; /* Cambia a un color morado para los admins Sub */
   color: white;
   padding: 15px;
   display: flex;
@@ -28,6 +29,16 @@
   align-items: center;
   flex-wrap: wrap;
   width: 100% !important;
+}
+
+.admin-header .header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-header .header-right {
+  display: flex;
+  gap: 10px;
 }
 
 .admin-header h2 {
@@ -140,6 +151,25 @@
   margin-right: 10px;
 }
 
+.file-upload-label {
+  text-align: center;
+  display: inline-block;
+  background-color: #007bff;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.file-upload-label:hover {
+  background-color: #0056b3;
+}
+
+.file-upload-input {
+  display: none;
+}
+
 .modal-backdrop {
   opacity: 0.5 !important;
 }
@@ -153,6 +183,13 @@
   height: 10px;
   background-color: #007bff;
   border-radius: 50%;
+}
+
+.admin-item {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 10px;
 }
 
 /* Media queries for responsiveness */
@@ -205,4 +242,8 @@
   .admin-header p {
     font-size: 0.875rem;
   }
+}
+.admin-message-image {
+  max-width: 100%; /* Ajusta el tamaño máximo de la imagen según tus necesidades */
+  height: auto;
 }

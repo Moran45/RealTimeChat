@@ -96,7 +96,6 @@
   box-sizing: border-box; /* Incluir el relleno y el borde en el ancho y alto total del elemento */
 }
 
-
 .Client-message-content {
   display: flex;
   justify-content: space-between;
@@ -126,6 +125,7 @@
 .Client-message-input button {
   padding: 10px 20px;
   border-radius: 8px;
+  margin-left: 10px;
 }
 
 .Client-question-buttons {
@@ -168,4 +168,8 @@
   .Client-chat-window {
     max-width: 100%;
   }
+}
+.Client-message-image {
+  max-width: 100%; /* Ajusta el tamaño máximo de la imagen según tus necesidades */
+  height: auto;
 }

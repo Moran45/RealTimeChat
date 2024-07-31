@@ -12,16 +12,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 include 'db.php';
+
 $user_id = $_POST['user_id'] ?? null;
 $area_id = $_POST['area_id'] ?? null;
+$current_url = $_POST['current_url'] ?? null;
 
-if ($user_id === null || $area_id === null) {
-    die(json_encode(['error' => 'User ID and Area ID are required.']));
+if ($user_id === null || $area_id === null || $current_url === null) {
+    die(json_encode(['error' => 'User ID, Area ID, and Current URL are required.']));
 }
 
-$sql = "SELECT id FROM chats WHERE user_id = ? AND area_id = ? LIMIT 1";
+// Buscar un chat existente
+$sql = "SELECT id FROM chats WHERE user_id = ? AND area_id = ? AND current_url = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $user_id, $area_id);
+$stmt->bind_param("iis", $user_id, $area_id, $current_url);
 $stmt->execute();
 $stmt->store_result();
 

@@ -18,7 +18,8 @@ include 'db.php'; // Asegúrate de tener tu conexión a la base de datos configu
 
 $data = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($data['name'], $data['email'], $data['area_id'], $data['contrasena'], $data['type_admin'], $data['user_mom'])) {
+// Verificar que todos los parámetros necesarios estén presentes
+if (!isset($data['name'], $data['email'], $data['area_id'], $data['contrasena'], $data['type_admin'], $data['user_mom'], $data['user_mom_id'], $data['current_url'])) {
     echo json_encode(['error' => 'Todos los parámetros son requeridos']);
     exit;
 }
@@ -30,9 +31,10 @@ $contrasena = $data['contrasena'];
 $type_admin = $data['type_admin']; // Campo de texto
 $user_mom = $data['user_mom']; // Campo de texto
 $user_mom_id = $data['user_mom_id']; // Campo de texto
+$current_url = $data['current_url']; // Campo de texto
 
-// Eliminar el campo created_at
-$sql = "INSERT INTO admin (name, email, area_id, contrasena, type_admin, user_mom, user_mom_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
+// Actualizar la consulta SQL para incluir el campo `current_url`
+$sql = "INSERT INTO admin (name, email, area_id, contrasena, type_admin, user_mom, user_mom_id, current_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 $stmt = $conn->prepare($sql);
 if (!$stmt) {
     echo json_encode(['error' => 'Error en la preparación de la consulta: ' . $conn->error]);
@@ -40,7 +42,7 @@ if (!$stmt) {
 }
 
 // Asignar los parámetros correctamente (todos son campos de texto o enteros)
-$stmt->bind_param('ssisssi', $name, $email, $area_id, $contrasena, $type_admin, $user_mom, $user_mom_id);
+$stmt->bind_param('ssisssis', $name, $email, $area_id, $contrasena, $type_admin, $user_mom, $user_mom_id, $current_url);
 
 if ($stmt->execute()) {
     // Obtener el ID del último registro insertado
@@ -59,6 +61,7 @@ if ($stmt->execute()) {
             'type_admin' => $type_admin,
             'user_mom' => $user_mom,
             'user_mom_id' => $user_mom_id,
+            'current_url' => $current_url,
         ]
     ]);
 } else {

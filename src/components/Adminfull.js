@@ -1,435 +1,486 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../WebSocketContext'; // Ajustada la ruta
-import '../AdminFull.css'; // Ajustada la ruta
+import React, { useEffect, useState, useRef } from 'react';
+import { useWebSocket } from '../WebSocketContext';
 import { useNavigate } from 'react-router-dom';
+import '../client.css';
 
-function Admin() {
-  const [chats, setChats] = useState([]);
-  const [user, setUser] = useState(null);
-  const [welcomeMessage, setWelcomeMessage] = useState('');
-  const navigate = useNavigate();
-  const [wsReady, setWsReady] = useState(false);
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [messageInput, setMessageInput] = useState('');
+function Client() {
   const [messages, setMessages] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [finalizedChats, setFinalizedChats] = useState([]);
+  const navigate = useNavigate();
+  const [user, setUserClient] = useState(null);
+  const [messageInput, setMessageInput] = useState('');
+  const [selectedArea, setSelectedArea] = useState(null);
+  const [chatId, setChatId] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [showRedirectButtons, setShowRedirectButtons] = useState(false);
-  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false); // Nuevo estado para el modal de crear usuario
-  const [newUserData, setNewUserData] = useState({
-    user_id: '',
-    name: '',
-    email: '',
-    area_id: '',
-    created_at: '',
-    contrasena: '',
-    type_admin: ''
-  });
-  const messagesEndRef = useRef(null);
-  const [currentAdminArea, setCurrentAdminArea] = useState(() => {
-    const storedArea = localStorage.getItem('area_id');
-    return storedArea ? parseInt(storedArea, 10) : 1;
-  });
+  const [showQuestions, setShowQuestions] = useState(true);
+  const [showChat, setShowChat] = useState(false);
+  const [unreadOwnersCount, setUnreadOwnersCount] = useState(0);
+  const [intervalId, setIntervalId] = useState(null);
+  const [currentUrl] = useState(window.location.href); // Nuevo estado para almacenar la URL actual
   const ws = useWebSocket();
+  const messagesEndRef = useRef(null);
+  const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
-    const storedUser = {
-      user_id: localStorage.getItem('user_id'),
-      area_id: localStorage.getItem('area_id'),
-      role: 'admin',
-      name: localStorage.getItem('name'),
-      email_or_name: localStorage.getItem('name'),
-      type_admin: localStorage.getItem('type_admin')
+    console.log('Current URL:', currentUrl); // Verificar que la URL se captura correctamente
+    const storedUserClient = {
+      user_id: localStorage.getItem('user_id_client'),
+      role: 'client', // Asumiendo que solo los admins llegan a esta página
+      name: localStorage.getItem('name_client'),
+      email_or_name: localStorage.getItem('name_client'),
     };
 
-    if (storedUser.user_id && storedUser.area_id) {
-      setUser(storedUser);
+    if (storedUserClient.user_id && storedUserClient.name) {
+      setUserClient(storedUserClient);
       if (ws) {
-        handleLogin(storedUser);
+        handleLogin(storedUserClient);
       }
-      setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: Admin-Full`);
     } else {
-      navigate('/');
+      navigate('/'); // Redirigir al login si no hay información de usuario
     }
   }, [ws, navigate]);
 
-  const handleLogin = (storedUser) => {
+  useEffect(() => {
+    const storedAreaId = localStorage.getItem('area_id_client');
+    if (storedAreaId) {
+      setSelectedArea(storedAreaId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!ws) return;
+
+    const fetchUnreadOwnersCount = async () => {
+      console.log('Fetching unread owners count...');
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+    };
+
+    ws.onopen = () => {
+      console.log('WebSocket connection opened.');
+      fetchUnreadOwnersCount();
+      const newIntervalId = setInterval(fetchUnreadOwnersCount, 10000);
+      setIntervalId(newIntervalId);
+    };
+
+    ws.onmessage = async (event) => {
+      const msg = JSON.parse(event.data);
+      console.log('Received message:', msg);
+
+      switch (msg.type) {
+        case 'WELCOME':
+          setMessages([{ text: msg.message, role: 'system', timestamp: new Date().toISOString() }]);
+          break;
+        case 'MESSAGE':
+          setMessages((prev) => [...prev, msg.message]);
+          if (msg.message.IsAdmin === 1) {
+            setUnreadOwnersCount(0);
+          }
+          localStorage.setItem('chat_id_client', msg.message.chat_id);
+          localStorage.setItem('area_id_client', selectedArea);
+          console.log(localStorage.getItem('chat_id_client'));
+          console.log(selectedArea);
+          break;
+        case 'CHAT_STARTED':
+          setChatId(msg.chat_id);
+          break;
+        case 'REPORT_MESSAGE':
+          const existingMessage = messages.find(m => m.timestamp === msg.message.timestamp);
+          if (!existingMessage) {
+            setMessages(prevMessages => [...prevMessages, msg.message]);
+          }
+          break;
+        case 'UNREAD_OWNERS_COUNT':
+          console.log('Received UNREAD_OWNERS_COUNT:', msg.count);
+          setUnreadOwnersCount(msg.count);
+          break;
+        case 'CHATS_CLIENT':
+          if (msg.chats.length === 0) {
+            localStorage.removeItem('area_id_client');
+            setSelectedArea(null);
+            setShowQuestions(true); // Forzar al usuario a seleccionar un área
+          } else {
+            setShowQuestions(false); // eliminar botones de area
+            setMessages(msg.chats.map(chat => ({
+              ...chat
+            })));
+          }
+          break;
+        default:
+          console.log('Unknown message type:', msg.type);
+      }
+      if (msg.message && msg.message.text === 'Reporte finalizado' && msg.message.IsAdmin === 1) {
+        setShowQuestions(true); // Forzar al usuario a seleccionar un área
+        setIsDisabled(true); // Deshabilitar input y botón
+      }
+    };
+
+    return () => clearInterval(intervalId);
+  }, [ws, messages, intervalId]);
+
+  useEffect(() => {
+    const storedChatId = localStorage.getItem('chat_id_client'); // Recuperar chat_id de localStorage
+  
+    console.log('hola' + storedChatId)
+
+  }, [ws]);
+
+  const startFetchingUnreadOwnersCount = () => {
+    const fetchUnreadOwnersCount = async () => {
+      console.log('Fetching unread owners count...');
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+    };
+
+    fetchUnreadOwnersCount();
+    const newIntervalId = setInterval(fetchUnreadOwnersCount, 10000);
+    setIntervalId(newIntervalId);
+  };
+
+  const handleSelectArea = (areaId, areaText) => {
+    const userId = localStorage.getItem('user_id');
+    setSelectedArea(areaId);
+    setShowQuestions(false); //ocultar botones de seleccionar area
+    setIsDisabled(false); // Habilitar input y botón
+    ws.send(JSON.stringify({
+      type: 'SELECT_AREA',
+      area_id: areaId,
+      current_url : currentUrl
+    }));
+
+    // Enviar mensaje al chat sobre la selección del área
+    const message = {
+      type: 'MESSAGE',
+      text: `Área seleccionada: ${areaText}`,
+      chat_id: chatId,
+      owner_id: userId,
+      IsAdmin: 0,
+      area_id : selectedArea,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Enviar mensaje al servidor
+    ws.send(JSON.stringify(message));
+
+    if (!intervalId) {
+      startFetchingUnreadOwnersCount();
+    }
+  };
+
+  const handleLogin = (storedUserClient) => {
     const handleLoginResponse = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'LOGIN_SUCCESS') {
-        localStorage.setItem('type_admin', msg.type_admin);
-
         ws.send(JSON.stringify({
-          type: 'GET_CHATS'
+          type: 'GET_CHATS_CLIENT',
+          chat_id: localStorage.getItem('chat_id_client'),
+          url: currentUrl // Incluye la URL actual en la solicitud de chats
         }));
+
+        ws.addEventListener('message', (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'CHATS_CLIENT') {
+            const areaId = localStorage.getItem('area_id_client');
+            if (areaId) {
+              setSelectedArea(areaId); // Actualiza selectedArea con el valor de localStorage
+              ws.send(JSON.stringify({
+                type: 'SELECT_AREA',
+                area_id: areaId,
+                url: currentUrl // Incluye la URL actual en la selección de área
+              }));
+            } else {
+              console.error('No area_id found in localStorage');
+            }
+          }
+        });
+
         ws.removeEventListener('message', handleLoginResponse);
       } else if (msg.type === 'LOGIN_FAILURE') {
-        navigate('/');
+        navigate('/'); // Redirigir al login si el login falla
         ws.removeEventListener('message', handleLoginResponse);
       }
     };
 
     ws.addEventListener('message', handleLoginResponse);
-
+  
     ws.send(JSON.stringify({
       type: 'LOGIN',
-      ...storedUser
+      ...storedUserClient
     }));
-  };
-
-  useEffect(() => {
-    if (!ws) return;
-
-    const handleNewMessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'CHATS') {
-        setChats(msg.chats);
-        sortChats(msg.chats, 'desc');
-      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
-        setMessages(msg.messages || []);
-      } else if (msg.type === 'MESSAGE') {
-        setMessages((prev) => [...prev, msg.message]);
-        scrollToBottom();
-      } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      }
-    };
-
-    ws.onclose = () => {
-      setWsReady(false);
-      console.log('WebSocket connection closed.');
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      console.log('Received message:', msg);
-      if (msg.type === 'CHATS') {
-        setChats(msg.chats);
-        sortChats(msg.chats, 'desc');
-      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
-        setMessages(msg.messages);
-      } else if (msg.type === 'MESSAGE' && selectedChat) {
-        setMessages((prev) => [...prev, msg.message]);
-      } else if (msg.type === 'NEW_CHAT') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'CHAT_REDIRECTED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-      } else if (msg.type === 'NEW_CLIENT') {
-        setClients((prevClients) => {
-          if (!prevClients.find(client => client.name === msg.client)) {
-            return [...prevClients, { name: msg.client, unreadCount: 0 }];
-          }
-          return prevClients;
-        });
-      } else {
-        setMessages((prevMessages) => {
-          const updatedMessages = { ...prevMessages };
-          if (!updatedMessages[msg.client]) {
-            updatedMessages[msg.client] = [];
-          }
-          if (!updatedMessages[msg.client].find(message => message.timestamp === msg.timestamp && message.text === msg.text)) {
-            updatedMessages[msg.client].push(msg);
-          }
-          return updatedMessages;
-        });
-
-        if (msg.role === 'Cliente') {
-          setClients((prevClients) =>
-            prevClients.map((client) =>
-              client.name === msg.client
-                ? { ...client, unreadCount: client.unreadCount + 1 }
-                : client
-            )
-          );
-        }
-      }
-    };
-
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-
-    return () => {
-      ws.removeEventListener('message', handleNewMessage);
-    };
-  }, [ws, selectedChat]);
-
-  const sortChats = (chatsToSort, order) => {
-    const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
-    const sortedChats = chatsWithUnreadMessages.sort((a, b) => {
-      const lastMessageA = a.messages[a.messages.length - 1];
-      const lastMessageB = b.messages[b.messages.length - 1];
-      return order === 'desc'
-        ? new Date(lastMessageB.timestamp) - new Date(lastMessageA.timestamp)
-        : new Date(lastMessageA.timestamp) - new Date(lastMessageB.timestamp);
-    });
-    const unchangedChats = chatsToSort.filter(chat => chat.unread_count === 0);
-    setChats([...sortedChats, ...unchangedChats]);
-    setSortOrder(order);
-  };
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) setUser(JSON.parse(storedUser));
-  }, [navigate]);
-
-  const handleSelectChat = (chat) => {
-    setSelectedChat(chat);
-    setShowRedirectButtons(true);
-    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
-    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
-  };
-
-  const handleRedirectChat = (newAreaId) => {
-    if (!ws || !selectedChat) {
-      alert('WebSocket connection not established or chat not selected.');
-      return;
-    }
-
-    ws.send(JSON.stringify({
-      type: 'REDIRECT_CHAT',
-      chat_id: selectedChat.chat_id,
-      new_area_id: newAreaId,
-    }));
-
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
-    setShowRedirectButtons(false);
-  };
+  };  
 
   const handleSendMessage = () => {
-    if (!ws || !selectedChat) {
-      alert('WebSocket connection not established or chat not selected.');
+    if (!ws || !selectedArea) {
+      alert('No area selected or WebSocket connection not established.');
+      return;
+    }
+    
+    console.log(localStorage.getItem('name_client'))
+    console.log(localStorage.getItem('chat_id_client'))
+    // Evitar enviar el mensaje dos veces
+    const message = {
+      type: 'MESSAGE',
+      text: messageInput,
+      chat_id: chatId,
+      owner_id: localStorage.getItem('user_id'),
+      area_id : selectedArea,
+      IsAdmin: 0,
+      current_url: currentUrl
+    };
+    console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
+
+    ws.send(JSON.stringify(message)); //aqui es donde se envia el mensaje y se muestra en pantalla
+    setMessageInput('');
+
+    if (!intervalId) {
+      startFetchingUnreadOwnersCount();
+    }
+  };
+
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+
+  const handleReportClick = async () => {
+    const userId = localStorage.getItem('user_id');
+    if (!ws || !userId) {
+      alert('WebSocket connection not established or user_id not found.');
       return;
     }
 
-    const message = {
-      type: 'MESSAGE',
-      chat_id: selectedChat.chat_id,
-      text: messageInput,
-      owner_id: localStorage.getItem('user_id'),
-      role: 'Admin',
-      IsAdmin: 1,
-    };
-
-    ws.send(JSON.stringify(message));
-    console.log('Sent message:', message);
-
-    setMessageInput('');
-    scrollToBottom();
-  };
-
-  const finalizeReport = () => {
-    if (ws && selectedChat) {
+    // Verificar si el área ya está seleccionada
+    if (selectedArea === null) {
+      handleSelectArea(3, 'Reporte realizado con éxito');
+    } else {
+      // Mostrar un mensaje en el chat de que el reporte se está realizando sin cambiar el área
       const message = {
-        type: 'finalize',
-        chat_id: selectedChat.chat_id,
-        text: 'Reporte finalizado',
-        owner_id: localStorage.getItem('user_id'),
-        IsAdmin: 1,
-        role: 'Admin',
+        type: 'MESSAGE',
+        text: 'Reporte realizado con éxito',
+        chat_id: chatId,
+        owner_id: userId,
+        IsAdmin: 0,
+        area_id : selectedArea,
+        timestamp: new Date().toISOString(),
+        current_url: currentUrl
       };
-
+      console.log('Sending report message with URL:', message); // Verificar el mensaje de reporte antes de enviarlo
       ws.send(JSON.stringify(message));
-      setMessages((prev) => [...prev, message]);
-      setFinalizedChats((prev) => [...prev, selectedChat.chat_id]);
-      setShowModal(false);
-      scrollToBottom();
+    }
+
+    setTimeout(() => {
+      ws.send(JSON.stringify({
+        type: 'START_CHAT',
+        user_id: userId,
+      }));
+    }, 500);
+
+    try {
+      const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/hacer_reporte.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          user_id: userId,
+        }),
+      });
+
+      const text = await response.text();
+      const data = JSON.parse(text);
+
+      if (data.error) {
+        console.error('Error al hacer el reporte:', data.error);
+      } else {
+        console.log('Reporte realizado con éxito:', data);
+        const reportMessage = {
+          type: 'MESSAGE',
+          text: `Reporte realizado con éxito:\nServicio: ${data.report.servicio}\nCorreo: ${data.report.correo}\nContraseña: ${data.report.contrasena}\nPerfiles: ${data.report.perfiles}\nPIN: ${data.report.pin}\nProblema: ${data.report.problema}`,
+          role: 'system',
+          timestamp: data.report.timestamp,
+          chat_id: chatId,
+          area_id: selectedArea,
+          owner_id: userId,
+          current_url: currentUrl
+        };
+  
+        ws.send(JSON.stringify({
+          type: 'REPORT_MESSAGE',
+          message: reportMessage,
+          timestamp: data.report.timestamp,
+          user_id: userId,
+          chat_id: chatId,
+          area_id: selectedArea,
+          owner_id: userId,
+          current_url: currentUrl
+        }));
+      }
+    } catch (error) {
+      console.error('Error al ejecutar la API de hacer_reporte:', error);
     }
   };
 
-  const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  const toggleChat = () => {
+    setShowChat(!showChat);
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      try {
+        // Redimensionar la imagen
+        const resizedFile = await resizeImage(file, 800, 600); // 800x600 es un ejemplo, ajusta según necesites
+  
+        // Crear un objeto FormData para enviar la imagen redimensionada
+        const formData = new FormData();
+        formData.append('image', resizedFile, file.name);
+  
+        // Enviar la imagen redimensionada a la API
+        const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/upload_images.php', {
+          method: 'POST',
+          body: formData
+        });
+  
+        if (!response.ok) {
+          throw new Error('Error al subir la imagen');
+        }
+  
+        // Obtener la respuesta JSON de la API
+        const data = await response.json();
+  
+        if (data.error) {
+          throw new Error(data.error);
+        }
+  
+        // La URL de la imagen devuelta por la API
+        const imageUrl = data.image_url;
+  
+        // Crear el mensaje con la URL de la imagen
+        const message = {
+          type: 'MESSAGE',
+          text: imageUrl,  // Usar la URL de la imagen en lugar del Data URL
+          content: imageUrl,  // Puedes ajustar esto si necesitas un formato diferente
+          fileName: file.name,
+          chat_id: chatId,
+          owner_id: localStorage.getItem('user_id'),
+          area_id: selectedArea,
+          IsAdmin: 0
+        };
+  
+        // Enviar el mensaje a través del WebSocket
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Error en la carga de archivos:', error);
+      }
     }
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleToggleUnreadFilter = () => {
-    setShowUnreadOnly(!showUnreadOnly);
-  };
-
-  const handleSortChats = () => {
-    sortChats(chats, sortOrder === 'desc' ? 'asc' : 'desc');
-  };
-
-  const getRedirectOptions = () => {
-    const allAreas = [1, 2, 3];
-    return allAreas.filter(area => area !== currentAdminArea);
-  };
-
-  const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
-
-  const handleCreateUser = () => {
-    // Aquí puedes manejar la lógica para crear un nuevo usuario
-    console.log('Crear usuario con datos:', newUserData);
-    setShowCreateUserModal(false);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewUserData({
-      ...newUserData,
-      [name]: value
+  
+  // Función para redimensionar la imagen
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+  
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+  
+          canvas.width = width;
+          canvas.height = height;
+  
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+  
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: file.type }));
+          }, file.type);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     });
   };
+  
 
   return (
-    <div className="admin-container">
-      <div className="admin-header bg-primary text-white p-3">
-        <h2>Chats</h2>
-        <p>{welcomeMessage}</p>
-        <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
-      </div>
-      <div className="admin-main d-flex">
-        <div className="admin-chat-list p-3">
-          <div className="d-flex justify-content-between mb-3">
-            <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
-            <button className="btn btn-light" onClick={handleSortChats}>
-              {sortOrder === 'desc' ? 'Mostrar más antiguos' : 'Mostrar más recientes'}
-            </button>
-          </div>
-          <button className="btn btn-light mb-3" onClick={handleToggleUnreadFilter}>
-            {showUnreadOnly ? 'Todos' : 'No Leídos'}
+    <div className="Client-container">
+      {!showChat ? (
+        <button className="Client-chat-toggle-button" onClick={toggleChat}>
+          <img src="https://cdn-icons-png.freepik.com/512/5041/5041093.png" alt="Chat Icon" className="Client-chat-icon" />
+        </button>
+      ) : (
+        <div className="Client-chat-window">
+          <button className="Client-chat-close-button" onClick={toggleChat}>
+            <i className="bi bi-x"></i>
           </button>
-          {chats.filter(chat => !showUnreadOnly || chat.unread_count > 0).map((chat, index) => (
-            <div key={index} onClick={() => handleSelectChat(chat)} className={`admin-chat-item p-2 mb-2 ${selectedChat?.chat_id === chat.chat_id ? 'bg-info text-white' : 'bg-light'}`}>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>{chat.user_name} - {chat.unread_count} no leídos</div>
-                {chat.unread_count > 0 && <div className="unread-indicator"></div>}
-              </div>
+          <h2>Chat {unreadOwnersCount > 0 && `Lugar en cola aproximado: ${unreadOwnersCount}`}</h2>
+          <div className="Client-messages">
+  {messages.map((msg, index) => (
+    <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
+      <div className="Client-message-content">
+      {msg.text.startsWith('https://phmsoft.tech/Ultimochatlojuro/images') ? (
+          // Si hay un nombre de archivo, asumimos que es una imagen
+          <div>
+            <img src={msg.text} alt={msg.fileName} className="Client-message-image" />
+          </div>
+        ) : (
+          <div>{msg.text}</div>
+        )}
+        <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
+
+          <div className="Client-message-input">
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="Escribe tu mensaje..."
+              className="form-control"
+              onKeyPress={handleKeyPress}
+              disabled={isDisabled} // Deshabilitar input
+            />
+            <button className="btn btn-success" onClick={handleSendMessage} disabled={isDisabled}>Enviar</button>
+            <label className="btn btn-primary">
+              Subir archivo
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+            </label>
+          </div>
+          {showQuestions && (
+            <div className="Client-question-buttons mt-3">
+              <p>Seleccionar area</p>
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(1, 'Problemas con mi cuenta')}>Problemas con mi cuenta</button>
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(2, 'Problemas con mi pago')}>Problemas con mi pago</button>
+              <button className="btn btn-outline-primary mb-2" onClick={() => handleSelectArea(3, 'Problemas con la página web')}>Problemas con la página web</button>
             </div>
-          ))}
-        </div>
-        <div className="admin-chat-window p-3 flex-grow-1">
-          {selectedChat ? (
-            <>
-              <div className="d-flex justify-content-between mb-3">
-                <h3>Chat con {selectedChat.user_name}</h3>
-                {showRedirectButtons && (
-                  <div className='div-btn'>
-                    {getRedirectOptions().map(area => (
-                      <button
-                        key={area}
-                        className="btn btn-secondary me-2"
-                        onClick={() => handleRedirectChat(area)}
-                      >
-                        Redirigir a área {area}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="admin-chat-messages p-3 border rounded mb-3">
-                {Array.isArray(messages) && messages.map((msg, index) => (
-                  <div key={index} className={`message-container ${msg.IsAdmin === 1 ? 'admin-message-container' : ''}`}>
-                    <div className={`admin-message ${msg.IsAdmin === 1 ? 'admin-message-admin' : 'admin-message-client'} p-2 mb-2 rounded ${msg.type === 'finalize' ? 'admin-message-finalized' : ''}`}>
-                      <strong>{msg.IsAdmin === 1 ? 'Admin' : 'Cliente'}:</strong> {msg.text}
-                    </div>
-                    {msg.type === 'finalize' && (
-                      <div className="admin-message-separator">
-                        <strong>Reporte finalizado</strong>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-              <div className="admin-chat-input d-flex align-items-center">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  placeholder="Escribe tu mensaje..."
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
-                  disabled={isChatFinalized(selectedChat.chat_id)}
-                />
-                <button className="btn btn-success me-2" onClick={handleSendMessage} disabled={isChatFinalized(selectedChat.chat_id)}>Enviar</button>
-                <button className="btn btn-danger" onClick={() => setShowModal(true)} disabled={isChatFinalized(selectedChat.chat_id)}>Finalizar Reporte</button>
-              </div>
-            </>
-          ) : (
-            <p>Selecciona un chat para empezar a mensajear.</p>
           )}
-        </div>
-      </div>
-
-      <div className={`modal ${showModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
-        <div className="modal-dialog" role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">Confirmar Finalización</h5>
-              <button type="button" className="close" onClick={() => setShowModal(false)} aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>¿Estás seguro de que deseas finalizar este reporte?</p>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button type="button" className="btn btn-danger" onClick={finalizeReport}>Finalizar Reporte</button>
-            </div>
+          <div className="mt-3">
+            <button className="btn btn-warning" onClick={handleReportClick}>Enviar reporte</button>
           </div>
         </div>
-      </div>
-      {showModal && <div className="modal-backdrop fade show"></div>}
-
-      <div className={`modal ${showCreateUserModal ? 'd-block' : 'd-none'}`} tabIndex="-1" role="dialog">
-        <div className="modal-dialog" role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">Crear Usuario</h5>
-              <button type="button" className="close" onClick={() => setShowCreateUserModal(false)} aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>ID</label>
-                <input type="text" className="form-control" name="user_id" value={newUserData.user_id} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Nombre</label>
-                <input type="text" className="form-control" name="name" value={newUserData.name} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input type="email" className="form-control" name="email" value={newUserData.email} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Área ID</label>
-                <input type="text" className="form-control" name="area_id" value={newUserData.area_id} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Fecha de Creación</label>
-                <input type="date" className="form-control" name="created_at" value={newUserData.created_at} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Contraseña</label>
-                <input type="password" className="form-control" name="contrasena" value={newUserData.contrasena} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Tipo de Admin</label>
-                <input type="text" className="form-control" name="type_admin" value={newUserData.type_admin} onChange={handleInputChange} />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancelar</button>
-              <button type="button" className="btn btn-primary" onClick={handleCreateUser}>Crear Usuario</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      {showCreateUserModal && <div className="modal-backdrop fade show"></div>}
+      )}
     </div>
   );
 }
 
-export default Admin;
+export default Client;

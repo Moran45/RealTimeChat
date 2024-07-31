@@ -1,6 +1,7 @@
 const WebSocketServer = require('websocket').server;
 const http = require('http');
 const { type } = require('os');
+const { Await } = require('react-router-dom');
 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
@@ -13,6 +14,7 @@ const MESSAGE_TYPES = {
   GET_CHATS: 'GET_CHATS',
   GET_CHATS2:'GET_CHATS',
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
+  FILE:'FILE',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -101,6 +103,10 @@ webSocketServer.on('request', (request) => {
         case MESSAGE_TYPES.CREATE_ADMIN:
           await handleCreateAdmin(connection, msg);
           break;
+        case MESSAGE_TYPES.FILE:
+            // Manejar los mensajes de archivo
+           await handleFileMessage(msg, connection);
+            break;
         default:
           console.log('Unknown message type:', msg.type);
       }
@@ -141,9 +147,10 @@ async function handleLogin(connection, msg) {
     connection.name = authData.name;
     connection.area_id = authData.area_id;
     connection.type_admin = authData.type_admin
+    connection.current_url = authData.current_url
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin, current_url: authData.current_url }));
     } else if (authData.role === 'client') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name}));
       connection.sendUTF(JSON.stringify({
@@ -201,15 +208,18 @@ async function handleShowAdminList(connection, msg) {
 async function handleSelectArea(connection, msg) {
   if (connection.role !== 'client') return;
   console.log('Processing area selection:', msg);
+  console.log(msg.current_url);
 
   const validAreas = ['1', '2', '3'];
   connection.area_id = validAreas.includes(msg.area_id.toString()) ? msg.area_id : '1';
+  connection.current_url = msg.current_url;
 
   try {
     const chatData = await getOrCreateChat(connection);
     console.log('Chat data:', chatData);
 
-    connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id }));
+    // Enviar la respuesta al cliente con el área seleccionada y current_url
+    connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id, current_url: connection.current_url}));
     notifyAdminsAboutNewChat(connection, chatData.chat_id);
   } catch (error) {
     console.error('Error creating or checking chat:', error);
@@ -217,10 +227,11 @@ async function handleSelectArea(connection, msg) {
 }
 
 async function getOrCreateChat(connection) {
+  // Verificar si el chat ya existe
   const checkChatResponse = await fetchWrapper(`${API_BASE_URL}/check_chat.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id }),
+    body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id, current_url: connection.current_url }),
   });
 
   if (!checkChatResponse.ok) throw new Error('Network response was not ok');
@@ -229,12 +240,15 @@ async function getOrCreateChat(connection) {
 
   if (chatData.chat_id) {
     connection.chat_id = chatData.chat_id;
+    console.log("el chat ya existe " + connection.current_url)
     return chatData;
   } else {
+    // Crear un nuevo chat si no existe
+    console.log("error, creando nuevo chat " + connection.current_url)
     const chatResponse = await fetchWrapper(`${API_BASE_URL}/start_chat.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id }),
+      body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id, current_url: connection.current_url }),
     });
 
     if (!chatResponse.ok) throw new Error('Network response was not ok');
@@ -244,6 +258,7 @@ async function getOrCreateChat(connection) {
     return newChatData;
   }
 }
+
 
 
 function notifyAdminsAboutNewChat(connection, chat_id) {
@@ -285,7 +300,7 @@ async function handleMessage(connection, msg) {
     // Verificamos si el mensaje es de un cliente (IsAdmin === 0) y si tiene area_id
     if (msg.IsAdmin === 0) {
       console.log('Notifying admins for area:', msg.area_id);
-      await handleGetChats2(msg.area_id);
+      await handleGetChats2(msg.area_id, msg.current_url);
     } else if (msg.IsAdmin === 0 && !msg.area_id) {
       console.warn('Message from client does not have area_id:', msg);
     }
@@ -294,6 +309,47 @@ async function handleMessage(connection, msg) {
     console.error('Error in handleMessage:', error);
   }
 }
+
+async function handleFileMessage(connection, msg) {
+  console.log('Processing FILE MESSAGE:', msg);
+  try {
+    const chat_id = msg.chat_id || connection.chat_id;
+    if (!chat_id) throw new Error('Chat ID is null. Cannot save file message.');
+
+    // Crear un nuevo objeto FormData
+    const formData = new FormData();
+    formData.append('chat_id', chat_id);
+    formData.append('owner_id', connection.user_id || msg.owner_id);
+    formData.append('IsAdmin', msg.IsAdmin);
+
+    // Asumimos que `msg.file` es el archivo que deseas subir
+    if (msg.file) {
+      formData.append('image', msg.file);
+    } else {
+      throw new Error('No file found in message');
+    }
+
+    // Enviar la solicitud con fetch
+    const response = await fetchWrapper(`${API_BASE_URL}/upload_images.php`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const savedFile = await response.json();
+    webSocketServer.connections.forEach((conn) => {
+      if (conn.chat_id === chat_id) {
+        conn.sendUTF(JSON.stringify({ type: 'FILE_RECEIVED', file: savedFile }));
+      }
+    });
+  } catch (error) {
+    console.error('Error handling file message:', error);
+    // Aquí podrías enviar un mensaje de error a través de WebSocket si es necesario
+  }
+}
+
+
 
 async function handleReportMessage(connection, msg) {
   console.log('Processing REPORT_MESSAGE:', msg);
@@ -355,19 +411,19 @@ async function handleRedirectChat(connection, msg) {
 }
 
 async function handleGetChats(connection) {
-  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id);
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id, 'current_url:', connection.current_url);
   if (connection.role !== 'admin') {
     console.log('User is not admin, aborting GET_CHATS. User details:', {
       user_id: connection.user_id,
       role: connection.role,
       area_id: connection.area_id,
-      name: connection.name
+      name: connection.name,
     });
     return;
   }
   console.log('Processing GET_CHATS for area_id:', connection.area_id);
   try {
-    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}`);
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}&current_url=${connection.current_url}`);
     if (!response.ok) throw new Error('Network response was not ok');
 
     const chats = await response.json();
@@ -393,10 +449,10 @@ async function handleGetChatMessages(connection, msg) {
   }
 }
 
-async function handleGetChats2(area_id) {
-  console.log('Processing GET_CHATS for area_id:', area_id);
+async function handleGetChats2(area_id, current_url) {
+  console.log('nuevo mensaje enviado Processing GET_CHATS for area_id:', area_id, current_url);
   try {
-    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}`);
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${area_id}&current_url=${current_url}`);
     console.log("api get chats");
     if (!response.ok) throw new Error('Network response was not ok');
 
@@ -421,6 +477,40 @@ async function handleGetChatsClient(connection, chat_id) {
     connection.sendUTF(JSON.stringify({ type: 'CHATS_CLIENT', chats }));
   } catch (error) {
     console.error('Error fetching client chats:', error);
+  }
+}
+
+async function handleCreateAdmin(connection, msg) {
+  try {
+    const url = `${API_BASE_URL}/create_admin.php`;
+    const body = JSON.stringify({
+      name: msg.name,
+      email: msg.email,
+      area_id: msg.area_id,
+      contrasena: msg.contrasena,
+      type_admin: msg.type_admin,
+      user_mom: msg.user_mom,
+      user_mom_id: msg.user_mom_id,
+      current_url: msg.current_url
+    });
+
+    // Asegúrate de que fetchWrapper esté bien definido
+    const response = await fetchWrapper(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+
+    // Asegúrate de que la respuesta esté en formato JSON
+    const result = await response.json();
+
+    // Asegúrate de que `sendUTF` es el método correcto para enviar datos
+    connection.sendUTF(JSON.stringify(result));
+
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    // Maneja los errores enviando una respuesta adecuada
+    connection.sendUTF(JSON.stringify({ success: false, message: 'Failed to create admin' }));
   }
 }
 

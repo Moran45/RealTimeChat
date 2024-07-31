@@ -124,7 +124,9 @@ function Client() {
 
   useEffect(() => {
     const storedChatId = localStorage.getItem('chat_id_client'); // Recuperar chat_id de localStorage
-    console.log('hola' + storedChatId);
+  
+    console.log('hola' + storedChatId)
+
   }, [ws]);
 
   const startFetchingUnreadOwnersCount = () => {
@@ -146,6 +148,7 @@ function Client() {
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
+      current_url : currentUrl
     }));
 
     // Enviar mensaje al chat sobre la selección del área
@@ -155,13 +158,10 @@ function Client() {
       chat_id: chatId,
       owner_id: userId,
       IsAdmin: 0,
-      area_id: selectedArea,
-      timestamp: new Date().toISOString(),
-      url: currentUrl // Incluye la URL actual en el mensaje
+      area_id : selectedArea,
+      timestamp: new Date().toISOString()
     };
-
-    console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
-
+    
     // Enviar mensaje al servidor
     ws.send(JSON.stringify(message));
 
@@ -205,34 +205,30 @@ function Client() {
     };
 
     ws.addEventListener('message', handleLoginResponse);
-
-    const loginMessage = {
+  
+    ws.send(JSON.stringify({
       type: 'LOGIN',
-      ...storedUserClient,
-      url: currentUrl // Incluye la URL actual en la solicitud de login
-    };
-    console.log('Sending login message with URL:', loginMessage); // Verificar el mensaje de login
-
-    ws.send(JSON.stringify(loginMessage));
-  };
+      ...storedUserClient
+    }));
+  };  
 
   const handleSendMessage = () => {
     if (!ws || !selectedArea) {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-
-    console.log(localStorage.getItem('name_client'));
-    console.log(localStorage.getItem('chat_id_client'));
+    
+    console.log(localStorage.getItem('name_client'))
+    console.log(localStorage.getItem('chat_id_client'))
     // Evitar enviar el mensaje dos veces
     const message = {
       type: 'MESSAGE',
       text: messageInput,
       chat_id: chatId,
       owner_id: localStorage.getItem('user_id'),
-      area_id: selectedArea,
+      area_id : selectedArea,
       IsAdmin: 0,
-      url: currentUrl // Incluye la URL actual en el mensaje
+      current_url: currentUrl
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
@@ -268,9 +264,9 @@ function Client() {
         chat_id: chatId,
         owner_id: userId,
         IsAdmin: 0,
-        area_id: selectedArea,
+        area_id : selectedArea,
         timestamp: new Date().toISOString(),
-        url: currentUrl // Incluye la URL actual en el mensaje
+        current_url: currentUrl
       };
       console.log('Sending report message with URL:', message); // Verificar el mensaje de reporte antes de enviarlo
       ws.send(JSON.stringify(message));
@@ -309,10 +305,9 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          url: currentUrl // Incluye la URL actual en el mensaje
+          current_url: currentUrl
         };
-
-        console.log('Sending report message with URL:', reportMessage); // Verificar el mensaje de reporte antes de enviarlo
+  
         ws.send(JSON.stringify({
           type: 'REPORT_MESSAGE',
           message: reportMessage,
@@ -321,7 +316,7 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          url: currentUrl // Incluye la URL actual en el mensaje
+          current_url: currentUrl
         }));
       }
     } catch (error) {
@@ -332,6 +327,107 @@ function Client() {
   const toggleChat = () => {
     setShowChat(!showChat);
   };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Verificar el tamaño del archivo
+      const maxSizeInMB = 10;
+      const maxSizeInBytes = maxSizeInMB * 1024 * 1024; // Convertir MB a bytes
+  
+      if (file.size > maxSizeInBytes) {
+        alert('El archivo es demasiado grande. Debe ser menor de 10 MB.');
+        return; // Detener el procesamiento si el archivo es demasiado grande
+      }
+  
+      try {
+        // Redimensionar la imagen
+        const resizedFile = await resizeImage(file, 800, 600); // 800x600 es un ejemplo, ajusta según necesites
+  
+        // Crear un objeto FormData para enviar la imagen redimensionada
+        const formData = new FormData();
+        formData.append('image', resizedFile, file.name);
+  
+        // Enviar la imagen redimensionada a la API
+        const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/upload_images.php', {
+          method: 'POST',
+          body: formData
+        });
+  
+        if (!response.ok) {
+          throw new Error('Error al subir la imagen');
+        }
+  
+        // Obtener la respuesta JSON de la API
+        const data = await response.json();
+  
+        if (data.error) {
+          throw new Error(data.error);
+        }
+  
+        // La URL de la imagen devuelta por la API
+        const imageUrl = data.image_url;
+  
+        // Crear el mensaje con la URL de la imagen
+        const message = {
+          type: 'MESSAGE',
+          text: imageUrl,  // Usar la URL de la imagen en lugar del Data URL
+          content: imageUrl,  // Puedes ajustar esto si necesitas un formato diferente
+          fileName: file.name,
+          chat_id: chatId,
+          owner_id: localStorage.getItem('user_id'),
+          area_id: selectedArea,
+          IsAdmin: 0
+        };
+  
+        // Enviar el mensaje a través del WebSocket
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Error en la carga de archivos:', error);
+      }
+    }
+  };
+  
+  
+  // Función para redimensionar la imagen
+  const resizeImage = (file, maxWidth, maxHeight) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+  
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+  
+          canvas.width = width;
+          canvas.height = height;
+  
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+  
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: file.type }));
+          }, file.type);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  
 
   return (
     <div className="Client-container">
@@ -346,16 +442,24 @@ function Client() {
           </button>
           <h2>Chat {unreadOwnersCount > 0 && `Lugar en cola aproximado: ${unreadOwnersCount}`}</h2>
           <div className="Client-messages">
-            {messages.map((msg, index) => (
-              <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
-                <div className="Client-message-content">
-                  <div>{msg.text}</div>
-                  <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+  {messages.map((msg, index) => (
+    <div key={index} className={`Client-message ${msg.IsAdmin ? 'Admin' : 'Client'} ${msg.text === 'Reporte finalizado' && msg.IsAdmin === 1 ? 'finalized' : ''}`}>
+      <div className="Client-message-content">
+      {msg.text.startsWith('https://phmsoft.tech/Ultimochatlojuro/images') ? (
+          //modificar la url segun su servidor donde guarden sus imagenes
+          <div>
+            <img src={msg.text} alt={msg.fileName} className="Client-message-image" />
           </div>
+        ) : (
+          <div>{msg.text}</div>
+        )}
+        <div className="Client-message-timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
+
           <div className="Client-message-input">
             <input
               type="text"
@@ -367,6 +471,10 @@ function Client() {
               disabled={isDisabled} // Deshabilitar input
             />
             <button className="btn btn-success" onClick={handleSendMessage} disabled={isDisabled}>Enviar</button>
+            <label className="btn btn-primary">
+              Subir archivo
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+            </label>
           </div>
           {showQuestions && (
             <div className="Client-question-buttons mt-3">

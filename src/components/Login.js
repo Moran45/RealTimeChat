@@ -36,6 +36,7 @@ function Login() {
             localStorage.setItem('name', msg.name);
             localStorage.setItem('password', msg.password);
             localStorage.setItem('type_admin', msg.type_admin);
+            localStorage.setItem('current_url', msg.current_url);
             navigate('/admin');
           } else if (msg.role === 'client') {
             localStorage.setItem('name_client', msg.name);

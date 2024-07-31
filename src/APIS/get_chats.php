@@ -13,21 +13,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 include 'db.php';
 
-// Verificar si area_id está presente en la solicitud
-if (!isset($_GET['area_id'])) {
-    echo json_encode(['error' => 'Falta el parámetro area_id']);
+// Verificar si area_id y current_url están presentes en la solicitud
+if (!isset($_GET['area_id']) || !isset($_GET['current_url'])) {
+    echo json_encode(['error' => 'Faltan los parámetros area_id o current_url']);
     exit;
 }
 
 $area_id = $_GET['area_id'];
+$current_url = $_GET['current_url'];
 
+// Consulta para obtener los chats filtrados por area_id y current_url
 $sql = "SELECT c.id as chat_id, u.name as user_name, u.email as user_email,
         (SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
         FROM chats c 
         JOIN users u ON c.user_id = u.id 
-        WHERE c.area_id = ?";
+        WHERE c.area_id = ? AND c.current_url = ?";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $area_id);
+$stmt->bind_param("is", $area_id, $current_url); // Cambiar a 'is', no 'i,s'
 $stmt->execute();
 $result = $stmt->get_result();
 
