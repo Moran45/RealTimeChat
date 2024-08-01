@@ -53,7 +53,15 @@ webSocketServer.on('request', (request) => {
   console.log('Connection accepted from origin:', request.origin);
 
   connection.on('message', async (message) => {
-    const msg = JSON.parse(message.utf8Data);
+    let msg;
+    
+    try { //try catch para retornar si el mensjaes no json y evitar desconexion
+      msg = JSON.parse(message.utf8Data);
+    } catch (error) {
+      console.error('Invalid JSON message received:', error);
+      return; 
+    }
+
     console.log('Received message:', msg);
 
     try {
