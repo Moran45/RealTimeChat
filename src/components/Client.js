@@ -27,6 +27,7 @@ function Client() {
       role: 'client', // Asumiendo que solo los admins llegan a esta página
       name: localStorage.getItem('name_client'),
       email_or_name: localStorage.getItem('name_client'),
+      current_Url: currentUrl
     };
 
     if (storedUserClient.user_id && storedUserClient.name) {
@@ -232,6 +233,7 @@ function Client() {
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
+    setMessages((prev) => [...prev]);
     ws.send(JSON.stringify(message)); //aqui es donde se envia el mensaje y se muestra en pantalla
     setMessageInput('');
 
@@ -377,7 +379,8 @@ function Client() {
           chat_id: chatId,
           owner_id: localStorage.getItem('user_id'),
           area_id: selectedArea,
-          IsAdmin: 0
+          IsAdmin: 0,
+          current_url: currentUrl
         };
   
         // Enviar el mensaje a través del WebSocket
