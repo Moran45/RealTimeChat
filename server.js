@@ -160,7 +160,7 @@ async function handleLogin(connection, msg) {
     if (authData.role === 'admin') {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin, current_url: authData.current_url }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name}));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name,}));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',
@@ -216,18 +216,18 @@ async function handleShowAdminList(connection, msg) {
 async function handleSelectArea(connection, msg) {
   if (connection.role !== 'client') return;
   console.log('Processing area selection:', msg);
-  console.log(msg.current_url);
+  console.log(msg.url);
 
   const validAreas = ['1', '2', '3'];
   connection.area_id = validAreas.includes(msg.area_id.toString()) ? msg.area_id : '1';
-  connection.current_url = msg.current_url;
+  connection.current_url = msg.url;
 
   try {
     const chatData = await getOrCreateChat(connection);
     console.log('Chat data:', chatData);
 
     // Enviar la respuesta al cliente con el área seleccionada y current_url
-    connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id, current_url: connection.current_url}));
+    connection.sendUTF(JSON.stringify({ type: 'AREA_SELECTED', area_id: connection.area_id, current_url: connection.current_url, user: connection.name}));
     notifyAdminsAboutNewChat(connection, chatData.chat_id);
   } catch (error) {
     console.error('Error creating or checking chat:', error);
