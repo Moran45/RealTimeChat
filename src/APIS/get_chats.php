@@ -23,11 +23,11 @@ $area_id = $_GET['area_id'];
 $current_url = $_GET['current_url'];
 
 // Consulta para obtener los chats filtrados por area_id y current_url
-$sql = "SELECT c.id as chat_id, u.name as user_name, u.email as user_email,
-        (SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
-        FROM chats c 
-        JOIN users u ON c.user_id = u.id 
-        WHERE c.area_id = ? AND c.current_url = ?";
+$sql = "SELECT c.id as chat_id, user_name as user_name, 
+(SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
+FROM chats c 
+WHERE c.area_id = ? AND c.current_url = ?;
+";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("is", $area_id, $current_url); // Cambiar a 'is', no 'i,s'
 $stmt->execute();
@@ -39,10 +39,9 @@ while ($row = $result->fetch_assoc()) {
     
     // Obtener los mensajes del chat
     $messages_sql = "SELECT m.text, m.timestamp, m.status, m.IsAdmin,
-                            IF(m.owner_id = u.id, 'Cliente', 'Admin') as role 
+                            IF(m.IsAdmin = 0, 'Cliente', 'Admin') as role 
                      FROM message m 
-                     JOIN users u ON m.owner_id = u.id 
-                     WHERE m.chat_id = ? 
+                     WHERE m.chat_id = ?
                      ORDER BY m.timestamp";
     $messages_stmt = $conn->prepare($messages_sql);
     $messages_stmt->bind_param("i", $chat_id);

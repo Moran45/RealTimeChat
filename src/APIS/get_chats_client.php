@@ -22,11 +22,10 @@ if (!isset($_GET['chat_id'])) {
 $chat_id = $_GET['chat_id'];
 
 // Consulta para obtener los mensajes del chat desde el último chat finalizado con los campos especificados
-$sql = "SELECT m.text, m.timestamp, m.status, m.IsAdmin, m.chat_finalized,
-       IF(m.owner_id = u.id, 'Cliente', 'Admin') as role 
+$sql = "SELECT m.text, m.timestamp, m.status, m.IsAdmin,
+       IF(m.IsAdmin = 0, 'Cliente', 'Admin') as role 
 FROM message m 
-JOIN users u ON m.owner_id = u.id 
-WHERE m.chat_id = ? 
+WHERE m.chat_id = ?
   AND m.timestamp > (
     SELECT MAX(timestamp)
     FROM message

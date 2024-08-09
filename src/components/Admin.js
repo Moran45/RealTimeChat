@@ -329,6 +329,47 @@ function Admin() {
     setAdminList(updatedAdminList);
   };
 
+  const updateArea = async (areaId) => {
+    try {
+      const storedId = localStorage.getItem('user_id');
+      const currentUrl = localStorage.getItem('current_url');
+      const storedUser = {
+        user_id: localStorage.getItem('user_id'),
+        area_id: areaId,
+        role: 'admin', // Asumiendo que solo los admins llegan a esta página
+        name: localStorage.getItem('name'),
+        email_or_name: localStorage.getItem('name'),
+        type_admin: localStorage.getItem('type_admin'),
+        password: localStorage.getItem('password'),
+      };
+      const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/edit_area_admin_full.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          area_id: areaId,
+          id: storedId, // Suponiendo que `user.id` es el ID del administrador actual
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (data.error) {
+        console.error('Error:', data.error);
+        alert('Error al actualizar el área');
+      } else {
+        console.log(data)
+        handleLogin(storedUser);
+        // Aquí puedes actualizar el estado o realizar otras acciones si es necesario
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error en la solicitud');
+    }
+  };
+  
+
   const handleUpdate = (id, updatedAdmin) => {
     const adminToUpdate = { ...updatedAdmin, id };
 
@@ -352,6 +393,7 @@ function Admin() {
         console.error('Error en la solicitud:', error);
       });
   };
+
 
   const handleDelete = (id) => {
     fetch('https://phmsoft.tech/Ultimochatlojuro/delate_admins.php', {
@@ -552,20 +594,23 @@ function Admin() {
           </div>
         </div>
       )}
-      <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3 d-flex justify-content-between align-items-center`}>
-        <div className="header-left">
-          <h2>Chats</h2>
-          <p>{welcomeMessage}</p>
-        </div>
-        <div className="header-right">
-          {user && user.type_admin === 'Full' && (
-            <>
-              <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
-              <button className="btn btn-light ml-2" onClick={() => { setShowAdminListModal(true); handleShowAdminList(); }}>Lista de admins</button>
-            </>
-          )}
-        </div>
-      </div>
+    <div className={`admin-header ${user && user.type_admin !== 'Full' ? 'admin-header-blue' : 'bg-primary'} text-white p-3 d-flex justify-content-between align-items-center`}>
+  <div className="header-left">
+    <h2>Chats</h2>
+    <p>{welcomeMessage}</p>
+  </div>
+  <div className="header-right">
+    {user && user.type_admin === 'Full' && (
+      <>
+        <button className="btn btn-light" name='1' onClick={() => updateArea(1)}>A1</button>
+        <button className="btn btn-light" name='2' onClick={() => updateArea(2)}>A2</button>
+        <button className="btn btn-light" name='3' onClick={() => updateArea(3)}>A3</button>
+        <button className="btn btn-light" onClick={() => setShowCreateUserModal(true)}>Crear Usuario</button>
+        <button className="btn btn-light ml-2" onClick={() => { setShowAdminListModal(true); handleShowAdminList(); }}>Lista de admins</button>
+      </>
+    )}
+  </div>
+</div>
       <div className="admin-main d-flex">
         <div className="admin-chat-list p-3">
           <div className="d-flex justify-content-between mb-3">
