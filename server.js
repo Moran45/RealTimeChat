@@ -88,7 +88,7 @@ webSocketServer.on('request', (request) => {
           await handleGetChats(connection);
           break;
         case MESSAGE_TYPES.GET_CHATS2:
-          await handleGetChats2(msg.area_id);
+          await handleGetChats2(msg.area_id, msg.current_url);
           break;
         case MESSAGE_TYPES.GET_CHATS_CLIENT:
           await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
@@ -98,9 +98,6 @@ webSocketServer.on('request', (request) => {
           break;
         case MESSAGE_TYPES.MARK_AS_READ:
           await handleMarkAsRead(msg);
-          break;
-        case MESSAGE_TYPES.GET_UNREAD_OWNERS:
-          await handleGetUnreadOwners(connection);
           break;
         case MESSAGE_TYPES.DELETE_CHAT:
           await handleDeleteChat(msg);
@@ -216,11 +213,11 @@ async function handleShowAdminList(connection, msg) {
 async function handleSelectArea(connection, msg) {
   if (connection.role !== 'client') return;
   console.log('Processing area selection:', msg);
-  console.log(msg.url);
+  console.log(msg.current_url);
 
   const validAreas = ['1', '2', '3'];
   connection.area_id = validAreas.includes(msg.area_id.toString()) ? msg.area_id : '1';
-  connection.current_url = msg.url;
+  connection.current_url = msg.current_url;
 
   try {
     const chatData = await getOrCreateChat(connection);
@@ -236,6 +233,7 @@ async function handleSelectArea(connection, msg) {
 
 async function getOrCreateChat(connection) {
   // Verificar si el chat ya existe
+  console.log("buscando chat con: " + connection.current_url + " user_ name: " + connection.name);
   const checkChatResponse = await fetchWrapper(`${API_BASE_URL}/check_chat.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -252,11 +250,11 @@ async function getOrCreateChat(connection) {
     return chatData;
   } else {
     // Crear un nuevo chat si no existe
-    console.log("error, creando nuevo chat " + connection.current_url)
+    console.log("error no existe un chat, creando nuevo chat con url " + connection.current_url)
     const chatResponse = await fetchWrapper(`${API_BASE_URL}/start_chat.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id, current_url: connection.current_url }),
+      body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id, current_url: connection.current_url, name:connection.name }),
     });
 
     if (!chatResponse.ok) throw new Error('Network response was not ok');
@@ -540,24 +538,7 @@ async function handleMarkAsRead(msg) {
   }
 }
 
-async function handleGetUnreadOwners(connection) {
-  console.log('Processing GET_UNREAD_OWNERS:');
 
-  try {
-    const response = await fetchWrapper(`${API_BASE_URL}/get_owners_messages_unread.php`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-
-    if (!response.ok) throw new Error('Network response was not ok');
-
-    const unreadOwners = await response.json();
-    console.log('Unread Owners Count:', unreadOwners.unread_count);
-    connection.sendUTF(JSON.stringify({ type: 'UNREAD_OWNERS_COUNT', count: unreadOwners.unread_count }));
-  } catch (error) {
-    console.error('Error fetching unread owners count:', error);
-  }
-}
 
 async function handleDeleteChat(msg) {
   console.log('Processing DELETE_CHAT:', msg);

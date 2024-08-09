@@ -160,7 +160,8 @@ function Client() {
       owner_id: userId,
       IsAdmin: 0,
       area_id : selectedArea,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      current_url: currentUrl
     };
     
     // Enviar mensaje al servidor
@@ -178,7 +179,7 @@ function Client() {
         ws.send(JSON.stringify({
           type: 'GET_CHATS_CLIENT',
           chat_id: localStorage.getItem('chat_id_client'),
-          url: currentUrl // Incluye la URL actual en la solicitud de chats
+          current_url: currentUrl // Incluye la URL actual en la solicitud de chats
         }));
 
         ws.addEventListener('message', (event) => {
@@ -190,7 +191,7 @@ function Client() {
               ws.send(JSON.stringify({
                 type: 'SELECT_AREA',
                 area_id: areaId,
-                url: currentUrl // Incluye la URL actual en la selección de área
+                current_url: currentUrl // Incluye la URL actual en la selección de área
               }));
             } else {
               console.error('No area_id found in localStorage');
