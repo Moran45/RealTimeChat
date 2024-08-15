@@ -10,7 +10,7 @@ export const WebSocketProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:3001');
+    const websocket = new WebSocket('ws://185.28.23.30:3001');
 
     websocket.onopen = () => {
       console.log('WebSocket connection established.');
