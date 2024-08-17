@@ -241,6 +241,21 @@ function Admin() {
     });
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('area_id');
+    localStorage.removeItem('name');
+    localStorage.removeItem('type_admin');
+    localStorage.removeItem('password');
+  
+    setUser(null);
+    setChats([]);
+    setMessages([]);
+    setWelcomeMessage('');
+  
+    navigate('/');
+  };
+
   const handleRedirectChat = (newAreaId) => {
     if (!ws || !selectedChat) {
       alert('WebSocket connection not established or chat not selected.');
@@ -609,6 +624,7 @@ function Admin() {
         <button className="btn btn-light ml-2" onClick={() => { setShowAdminListModal(true); handleShowAdminList(); }}>Lista de admins</button>
       </>
     )}
+      <button className="btn btn-danger ml-3" onClick={handleLogout}>Logout</button>
   </div>
 </div>
       <div className="admin-main d-flex">
