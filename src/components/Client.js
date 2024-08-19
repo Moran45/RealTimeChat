@@ -230,11 +230,11 @@ function Client() {
       owner_id: localStorage.getItem('user_id'),
       area_id : selectedArea,
       IsAdmin: 0,
-      current_url: currentUrl
+      current_url: currentUrl,
+      chat_finalized: 0
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
-    setMessages((prev) => [...prev]);
     ws.send(JSON.stringify(message)); //aqui es donde se envia el mensaje y se muestra en pantalla
     setMessageInput('');
 
