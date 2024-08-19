@@ -336,6 +336,10 @@ function Admin() {
     return allAreas.filter(area => area !== currentAdminArea);
   };
 
+  useEffect(() => {
+    const options = getRedirectOptions();
+  }, [currentAdminArea]);
+
   const isChatFinalized = (chatId) => finalizedChats.includes(chatId);
 
   const handleChange = (e, index, field) => {
@@ -347,16 +351,16 @@ function Admin() {
   const updateArea = async (areaId) => {
     try {
       const storedId = localStorage.getItem('user_id');
-      const currentUrl = localStorage.getItem('current_url');
       const storedUser = {
-        user_id: localStorage.getItem('user_id'),
+        user_id: storedId,
         area_id: areaId,
-        role: 'admin', // Asumiendo que solo los admins llegan a esta página
+        role: 'admin',
         name: localStorage.getItem('name'),
         email_or_name: localStorage.getItem('name'),
         type_admin: localStorage.getItem('type_admin'),
         password: localStorage.getItem('password'),
       };
+  
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/edit_area_admin_full.php', {
         method: 'POST',
         headers: {
@@ -364,7 +368,7 @@ function Admin() {
         },
         body: JSON.stringify({
           area_id: areaId,
-          id: storedId, // Suponiendo que `user.id` es el ID del administrador actual
+          id: storedId,
         }),
       });
   
@@ -374,15 +378,16 @@ function Admin() {
         console.error('Error:', data.error);
         alert('Error al actualizar el área');
       } else {
-        console.log(data)
+        // Actualiza el estado `currentAdminArea` y almacena en localStorage
+        setCurrentAdminArea(areaId);
+        localStorage.setItem('area_id', areaId);
         handleLogin(storedUser);
-        // Aquí puedes actualizar el estado o realizar otras acciones si es necesario
       }
     } catch (error) {
       console.error('Error:', error);
       alert('Error en la solicitud');
     }
-  };
+  };  
   
 
   const handleUpdate = (id, updatedAdmin) => {
