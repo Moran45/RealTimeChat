@@ -14,6 +14,7 @@
     "web-vitals": "^2.1.4",
     "websocket": "^1.0.35"
   },
+  "homepage": "https://phmsoft.tech",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
