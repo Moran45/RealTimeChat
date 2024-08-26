@@ -39,7 +39,8 @@ const webSocketServer = new WebSocketServer({
 });
 
 function originIsAllowed(origin) {
-  return true; // Permitir todas las conexiones
+  const allowedOrigins = ['http://localhost:3000'];
+  return allowedOrigins.includes(origin);
 }
 
 webSocketServer.on('request', (request) => {
@@ -68,6 +69,7 @@ webSocketServer.on('request', (request) => {
       switch (msg.type) {
         case MESSAGE_TYPES.LOGIN:
           await handleLogin(connection, msg);
+          isAuthenticated = true
           break;
         case MESSAGE_TYPES.SELECT_AREA:
           await handleSelectArea(connection, msg);
@@ -278,6 +280,8 @@ function notifyAdminsAboutNewChat(connection, chat_id) {
 async function handleMessage(connection, msg) {
   console.log('Processing MESSAGE:', msg);
   try {
+
+
     const chat_id = msg.chat_id || connection.chat_id;
     if (!chat_id) throw new Error('Chat ID is null. Cannot save message.');
 
@@ -297,8 +301,10 @@ async function handleMessage(connection, msg) {
     if (!response.ok) throw new Error('Network response was not ok');
 
     const savedMessage = await response.json();
+ 
+
     webSocketServer.connections.forEach((conn) => {
-      if (conn.chat_id === chat_id) {
+      if (conn.chat_id === chat_id ) {
         conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
       }
     });
