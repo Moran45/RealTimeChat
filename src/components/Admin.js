@@ -66,11 +66,16 @@ function Admin() {
     const handleLoginResponse = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'LOGIN_SUCCESS') {
+        const token = msg.token;
+        localStorage.setItem('auth_token', token);
+        const authToken = localStorage.getItem('auth_token')
+        console.log("el token es : " + localStorage.getItem('auth_token'))
         // Store additional data
         localStorage.setItem('type_admin', msg.type_admin);
-
+        
         ws.send(JSON.stringify({
-          type: 'GET_CHATS'
+          type: 'GET_CHATS',
+          token : authToken
         }));
         ws.removeEventListener('message', handleLoginResponse);
       } else if (msg.type === 'LOGIN_FAILURE') {
@@ -85,6 +90,7 @@ function Admin() {
       type: 'LOGIN',
       ...storedUser
     }));
+    
   };
 
   useEffect(() => {
@@ -117,6 +123,7 @@ function Admin() {
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log('Received message:', msg);
+      const authToken = localStorage.getItem('auth_token'); // Obtener el token
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
@@ -128,11 +135,11 @@ function Admin() {
           setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
         }
       } else if (msg.type === 'NEW_CHAT') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token : authToken }));
       } else if (msg.type === 'CHAT_REDIRECTED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token: authToken }));
       } else if (msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token : authToken }));
       } else if (msg.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
           if (!prevClients.find(client => client.name === msg.client)) {
@@ -165,8 +172,8 @@ function Admin() {
         }
       }
     };
-
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+    ws.send(JSON.stringify({ type: 'GET_CHATS', token: authToken  }));
 
     return () => {
       ws.removeEventListener('message', handleNewMessage);
@@ -193,10 +200,11 @@ function Admin() {
   }, [navigate]);
 
   const handleSelectChat = (chat) => {
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
     setSelectedChat(chat);
     setShowRedirectButtons(true);
-    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
-    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
+    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id, token : authToken }));
+    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id, token : authToken }));
   };
 
   const handleCreateUser = () => {
@@ -205,6 +213,7 @@ function Admin() {
       name: localStorage.getItem('name'),
       current_url: localStorage.getItem('current_url')
     }
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
     console.log(storedUser);
     const message = {
       type: 'CREATE_ADMIN',
@@ -215,7 +224,8 @@ function Admin() {
       type_admin: newUserData.type_admin,
       user_mom: storedUser.name,
       user_mom_id: storedUser.user_id,
-      current_url: storedUser.current_url
+      current_url: storedUser.current_url,
+      token: authToken
     };
 
     console.log('New user:', message);
@@ -226,9 +236,11 @@ function Admin() {
 
   const handleShowAdminList = () => {
     const storedId = localStorage.getItem('user_id');
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
     const message = {
       type: 'GET_ADMINS',
-      user_mom_id: storedId
+      user_mom_id: storedId,
+      token: authToken
     };
     ws.send(JSON.stringify(message));
   };
@@ -262,13 +274,16 @@ function Admin() {
       return;
     }
 
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
     ws.send(JSON.stringify({
       type: 'REDIRECT_CHAT',
       chat_id: selectedChat.chat_id,
       new_area_id: newAreaId,
+      token: authToken
     }));
 
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    ws.send(JSON.stringify({ type: 'GET_CHATS', token: authToken }));
     setShowRedirectButtons(false);
   };
 
@@ -278,6 +293,8 @@ function Admin() {
       return;
     }
 
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
     const message = {
       type: 'MESSAGE',
       chat_id: selectedChat.chat_id,
@@ -285,6 +302,7 @@ function Admin() {
       owner_id: localStorage.getItem('user_id'),
       role: 'Admin',
       IsAdmin: 1,
+      token: authToken
     };
 
     ws.send(JSON.stringify(message));
@@ -296,6 +314,9 @@ function Admin() {
 
   const finalizeReport = () => {
     if (ws && selectedChat) {
+
+      const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
       const message = {
         type: 'FINALIZE',
         chat_id: selectedChat.chat_id,
@@ -303,7 +324,8 @@ function Admin() {
         owner_id: localStorage.getItem('user_id'),
         IsAdmin: 1,
         role: 'Admin',
-        chat_finalized: 1
+        chat_finalized: 1,
+        token: authToken
       };
 
       ws.send(JSON.stringify(message));
@@ -486,7 +508,7 @@ function Admin() {
   
         // La URL de la imagen devuelta por la API
         const imageUrl = data.image_url;
-  
+        const authToken = localStorage.getItem('auth_token'); // Obtener el token
         // Crear el mensaje con la URL de la imagen
         const message = {
           type: 'MESSAGE',
@@ -495,7 +517,8 @@ function Admin() {
           fileName: file.name,
           chat_id: selectedChat.chat_id,
           owner_id: localStorage.getItem('user_id'),
-          IsAdmin: 1
+          IsAdmin: 1,
+          token: authToken
         };
   
         // Enviar el mensaje a través del WebSocket

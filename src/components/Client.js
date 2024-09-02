@@ -21,13 +21,14 @@ function Client() {
   const [isDisabled, setIsDisabled] = useState(false);
 
   useEffect(() => {
-    console.log('Current URL:', currentUrl); // Verificar que la URL se captura correctamente
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+    console.log('Current URL:', currentUrl+ "TOken is : ", authToken); // Verificar que la URL se captura correctamente
     const storedUserClient = {
       user_id: localStorage.getItem('user_id_client'),
       role: 'client', // Asumiendo que solo los admins llegan a esta página
       name: localStorage.getItem('name_client'),
       email_or_name: localStorage.getItem('name_client'),
-      current_Url: currentUrl
+      current_Url: currentUrl,
     };
 
     if (storedUserClient.user_id && storedUserClient.name) {
@@ -56,9 +57,11 @@ function Client() {
   useEffect(() => {
     if (!ws) return;
 
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
     const fetchUnreadOwnersCount = async () => {
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS', token: authToken }));
     };
 
     ws.onopen = () => {
@@ -130,10 +133,12 @@ function Client() {
 
   }, [ws]);
 
+  const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
   const startFetchingUnreadOwnersCount = () => {
     const fetchUnreadOwnersCount = async () => {
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS', token: authToken }));
     };
 
     fetchUnreadOwnersCount();
@@ -143,13 +148,15 @@ function Client() {
 
   const handleSelectArea = (areaId, areaText) => {
     const userId = localStorage.getItem('user_id');
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
     setSelectedArea(areaId);
     setShowQuestions(false); //ocultar botones de seleccionar area
     setIsDisabled(false); // Habilitar input y botón
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
-      current_url : currentUrl
+      current_url : currentUrl,
+      token : authToken
     }));
 
     // Enviar mensaje al chat sobre la selección del área
@@ -161,7 +168,8 @@ function Client() {
       IsAdmin: 0,
       area_id : selectedArea,
       timestamp: new Date().toISOString(),
-      current_url: currentUrl
+      current_url: currentUrl,
+      token : authToken
     };
     
     // Enviar mensaje al servidor
@@ -176,10 +184,17 @@ function Client() {
     const handleLoginResponse = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'LOGIN_SUCCESS') {
+
+        const token = msg.token;
+        localStorage.setItem('auth_token', token);
+        console.log("el token es : " + localStorage.getItem('auth_token'))
+        const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
         ws.send(JSON.stringify({
           type: 'GET_CHATS_CLIENT',
           chat_id: localStorage.getItem('chat_id_client'),
-          current_url: currentUrl // Incluye la URL actual en la solicitud de chats
+          current_url: currentUrl, // Incluye la URL actual en la solicitud de chats
+          token: authToken
         }));
 
         ws.addEventListener('message', (event) => {
@@ -191,7 +206,8 @@ function Client() {
               ws.send(JSON.stringify({
                 type: 'SELECT_AREA',
                 area_id: areaId,
-                current_url: currentUrl // Incluye la URL actual en la selección de área
+                current_url: currentUrl,
+                token: authToken // Incluye la URL actual en la selección de área
               }));
             } else {
               console.error('No area_id found in localStorage');
@@ -207,10 +223,9 @@ function Client() {
     };
 
     ws.addEventListener('message', handleLoginResponse);
-  
     ws.send(JSON.stringify({
       type: 'LOGIN',
-      ...storedUserClient
+      ...storedUserClient,
     }));
   };  
 
@@ -220,8 +235,11 @@ function Client() {
       return;
     }
     
+    const authToken = localStorage.getItem('auth_token'); // Obtener el token
+
     console.log(localStorage.getItem('name_client'))
     console.log(localStorage.getItem('chat_id_client'))
+    console.log(authToken)
     // Evitar enviar el mensaje dos veces
     const message = {
       type: 'MESSAGE',
@@ -231,7 +249,8 @@ function Client() {
       area_id : selectedArea,
       IsAdmin: 0,
       current_url: currentUrl,
-      chat_finalized: 0
+      chat_finalized: 0,
+      token: authToken // Incluir el token en el mensaje
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
@@ -261,6 +280,7 @@ function Client() {
       handleSelectArea(3, 'Reporte realizado con éxito');
     } else {
       // Mostrar un mensaje en el chat de que el reporte se está realizando sin cambiar el área
+      const authToken = localStorage.getItem('auth_token'); // Obtener el token
       const message = {
         type: 'MESSAGE',
         text: 'Reporte realizado con éxito',
@@ -269,7 +289,8 @@ function Client() {
         IsAdmin: 0,
         area_id : selectedArea,
         timestamp: new Date().toISOString(),
-        current_url: currentUrl
+        current_url: currentUrl,
+        token : authToken
       };
       console.log('Sending report message with URL:', message); // Verificar el mensaje de reporte antes de enviarlo
       ws.send(JSON.stringify(message));
@@ -279,6 +300,7 @@ function Client() {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
+        token: authToken
       }));
     }, 500);
 
@@ -308,7 +330,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: authToken
         };
   
         ws.send(JSON.stringify({
@@ -319,7 +342,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: authToken
         }));
       }
     } catch (error) {
@@ -370,7 +394,7 @@ function Client() {
   
         // La URL de la imagen devuelta por la API
         const imageUrl = data.image_url;
-  
+        const authToken = localStorage.getItem('auth_token'); // Obtener el token
         // Crear el mensaje con la URL de la imagen
         const message = {
           type: 'MESSAGE',
@@ -381,7 +405,8 @@ function Client() {
           owner_id: localStorage.getItem('user_id'),
           area_id: selectedArea,
           IsAdmin: 0,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: authToken
         };
   
         // Enviar el mensaje a través del WebSocket

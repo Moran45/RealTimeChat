@@ -1,7 +1,7 @@
 const WebSocketServer = require('websocket').server;
 const http = require('http');
-const { type } = require('os');
-const { Await } = require('react-router-dom');
+const { RateLimiterMemory } = require('rate-limiter-flexible');
+const crypto = require('crypto');
 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
@@ -12,9 +12,9 @@ const MESSAGE_TYPES = {
   FINALIZE: 'FINALIZE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS',
-  GET_CHATS2:'GET_CHATS',
+  GET_CHATS2: 'GET_CHATS',
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
-  FILE:'FILE',
+  FILE: 'FILE',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
   MARK_AS_READ: 'MARK_AS_READ',
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
@@ -22,6 +22,21 @@ const MESSAGE_TYPES = {
   GET_ADMINS: 'GET_ADMINS',
   DELETE_CHAT: 'DELETE_CHAT'
 };
+
+// Rate limiter para conexiones por segundo (per IP)
+const rateLimiterIP = new RateLimiterMemory({
+  points: 5, // 5 connections
+  duration: 1, // per 1 second
+});
+
+// Rate limiter para los mensajes por segundo
+const rateLimiterConnection = new RateLimiterMemory({
+  points: 10, // 10 mensajes
+  duration: 1, // por 1 second
+});
+
+// Store for authenticated tokens
+const authenticatedTokens = new Map();
 
 async function fetchWrapper(url, options) {
   const fetch = (await import('node-fetch')).default;
@@ -39,8 +54,11 @@ const webSocketServer = new WebSocketServer({
 });
 
 function originIsAllowed(origin) {
-  const allowedOrigins = ['http://localhost:3000'];
-  return allowedOrigins.includes(origin);
+  return true; // Permitir todas las conexiones
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
 }
 
 webSocketServer.on('request', (request) => {
@@ -50,86 +68,133 @@ webSocketServer.on('request', (request) => {
     return;
   }
 
-  const connection = request.accept(null, request.origin);
-  console.log('Connection accepted from origin:', request.origin);
+  const ip = request.remoteAddress;
 
-  connection.on('message', async (message) => {
-    let msg;
-    
-    try { //try catch para retornar si el mensjaes no json y evitar desconexion
-      msg = JSON.parse(message.utf8Data);
-    } catch (error) {
-      console.error('Invalid JSON message received:', error);
-      return; 
-    }
-
-    console.log('Received message:', msg);
-
+  const handleRequest = async () => {
     try {
-      switch (msg.type) {
-        case MESSAGE_TYPES.LOGIN:
-          await handleLogin(connection, msg);
-          isAuthenticated = true
-          break;
-        case MESSAGE_TYPES.SELECT_AREA:
-          await handleSelectArea(connection, msg);
-          break;
-        case MESSAGE_TYPES.MESSAGE:
-          await handleMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.REPORT_MESSAGE:
-          await handleReportMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.FINALIZE:
-          await handleMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.REDIRECT_CHAT:
-          await handleRedirectChat(connection, msg);
-          break;
-        case MESSAGE_TYPES.GET_CHATS:
-          await handleGetChats(connection);
-          break;
-        case MESSAGE_TYPES.GET_CHATS2:
-          await handleGetChats2(msg.area_id, msg.current_url);
-          break;
-        case MESSAGE_TYPES.GET_CHATS_CLIENT:
-          await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
-          break; 
-        case MESSAGE_TYPES.GET_CHAT_MESSAGES:
-          await handleGetChatMessages(connection, msg);
-          break;
-        case MESSAGE_TYPES.MARK_AS_READ:
-          await handleMarkAsRead(msg);
-          break;
-        case MESSAGE_TYPES.DELETE_CHAT:
-          await handleDeleteChat(msg);
-          break;
-        case MESSAGE_TYPES.GET_ADMINS:
-          await handleShowAdminList(connection, msg);
-          break;
-        case MESSAGE_TYPES.CREATE_ADMIN:
-          await handleCreateAdmin(connection, msg);
-          break;
-        case MESSAGE_TYPES.FILE:
-            // Manejar los mensajes de archivo
-           await handleFileMessage(msg, connection);
-            break;
-        default:
-          console.log('Unknown message type:', msg.type);
-      }
-    } catch (error) {
-      console.error(`Error processing message of type ${msg.type}:`, error);
+      await rateLimiterIP.consume(ip);
+    } catch (rejRes) {
+      request.reject(429, 'Too Many Requests');
+      console.log(`Connection from IP ${ip} rejected due to rate limiting.`);
+      return;
     }
-  });
 
-  connection.on('close', (reasonCode, description) => {
-    console.log('Client has disconnected.');
-  });
+    const connection = request.accept(null, request.origin);
+    console.log('Connection accepted from origin:', request.origin);
+
+    let token = null;
+
+    connection.on('message', async (message) => {
+      try {
+        await rateLimiterConnection.consume(connection.remoteAddress);
+      } catch (rejRes) {
+        connection.sendUTF(JSON.stringify({ error: 'Too Many Requests' }));
+        return;
+      }
+
+      let msg;
+      try {
+        msg = JSON.parse(message.utf8Data);
+      } catch (error) {
+        console.error('Invalid JSON message received:', error);
+        return;
+      }
+
+      console.log('Received message:', msg);
+
+      // Verificar si el mensaje incluye un token y si es válido
+      if (msg.type !== MESSAGE_TYPES.LOGIN && msg.type !== MESSAGE_TYPES.GET_CHATS ) { // Exceptuar el LOGIN de la verificación
+        if (!msg.token || !authenticatedTokens.has(msg.token) || authenticatedTokens.get(msg.token) !== connection) {
+          connection.sendUTF(JSON.stringify({ error: 'Invalid token' }));
+          connection.close(); // Cerrar la conexión si el token es inválido
+          return;
+        }
+      }
+
+      try {
+        switch (msg.type) {
+          case MESSAGE_TYPES.LOGIN:
+            try {
+              const authResult = await handleLogin(connection, msg, token);
+              if (authResult.authenticated) {
+                isAuthenticated = true;
+                token = generateToken();
+                authenticatedTokens.set(token, connection);
+                connection.sendUTF(JSON.stringify({ type: 'AUTH_SUCCESS', token }));
+              } else {
+                connection.sendUTF(JSON.stringify({ type: 'AUTH_FAILURE', message: authResult.message }));
+              }
+            } catch (error) {
+              console.error('Error during LOGIN:', error);
+              connection.sendUTF(JSON.stringify({ type: 'AUTH_FAILURE', message: 'Internal server error' }));
+            }
+            break;
+
+          case MESSAGE_TYPES.SELECT_AREA:
+            await handleSelectArea(connection, msg);
+            break;
+          case MESSAGE_TYPES.MESSAGE:
+            await handleMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.REPORT_MESSAGE:
+            await handleReportMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.FINALIZE:
+            await handleMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.REDIRECT_CHAT:
+            await handleRedirectChat(connection, msg);
+            break;
+          case MESSAGE_TYPES.GET_CHATS:
+            await handleGetChats(connection);
+            break;
+          case MESSAGE_TYPES.GET_CHATS2:
+            await handleGetChats2(msg.area_id, msg.current_url);
+            break;
+          case MESSAGE_TYPES.GET_CHATS_CLIENT:
+            await handleGetChatsClient(connection, msg.chat_id);
+            break;
+          case MESSAGE_TYPES.GET_CHAT_MESSAGES:
+            await handleGetChatMessages(connection, msg);
+            break;
+          case MESSAGE_TYPES.MARK_AS_READ:
+            await handleMarkAsRead(msg);
+            break;
+          case MESSAGE_TYPES.DELETE_CHAT:
+            await handleDeleteChat(msg);
+            break;
+          case MESSAGE_TYPES.GET_ADMINS:
+            await handleShowAdminList(connection, msg);
+            break;
+          case MESSAGE_TYPES.CREATE_ADMIN:
+            await handleCreateAdmin(connection, msg);
+            break;
+          case MESSAGE_TYPES.FILE:
+            await handleFileMessage(connection, msg);
+            break;
+          default:
+            console.log('Unknown message type:', msg.type);
+        }
+      } catch (error) {
+        console.error(`Error processing message of type ${msg.type}:`, error);
+      }
+    });
+
+    connection.on('close', (reasonCode, description) => {
+      console.log('Client has disconnected.');
+      if (token) {
+        authenticatedTokens.delete(token);
+      }
+    });
+  };
+
+  handleRequest();
 });
 
 
-async function handleLogin(connection, msg) {
-  console.log('Processing LOGIN');
+
+async function handleLogin(connection, msg, token) {
+  console.log('Processing LOGIN', token);
   try {
     let url = `${API_BASE_URL}/auth_user.php`;
     let body = { email_or_name: msg.email_or_name };
@@ -149,29 +214,57 @@ async function handleLogin(connection, msg) {
     
     const authData = await response.json();
     console.log('Auth data:', authData);
+
     connection.role = authData.role;
     connection.user_id = authData.user_id;
     connection.name = authData.name;
     connection.area_id = authData.area_id;
-    connection.type_admin = authData.type_admin
-    connection.current_url = authData.current_url
+    connection.type_admin = authData.type_admin;
+    connection.current_url = authData.current_url;
 
+    // Eliminar la segunda llamada a response.json()
+    // En lugar de eso, usa directamente authData
+
+    
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin, current_url: authData.current_url }));
+      connection.sendUTF(JSON.stringify({
+        type: 'LOGIN_SUCCESS', 
+        role: 'admin', 
+        user_id: authData.user_id, 
+        IsAdmin: 1, 
+        area_id: authData.area_id, 
+        name: authData.name, 
+        type_admin: authData.type_admin, 
+        current_url: authData.current_url,
+        token
+      }));
+      return { authenticated: true, ...authData };
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name,}));
+      connection.sendUTF(JSON.stringify({
+        type: 'LOGIN_SUCCESS', 
+        role: 'client', 
+        user_id: authData.user_id, 
+        IsAdmin: 0, 
+        name: authData.name,
+        token // Asegúrate de incluir el token aquí
+      }));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
-        message: 'Bienvenido! ¿Qué problema tienes? ',
+        message: '¡Bienvenido! ¿Qué problema tienes?',
+        token
       }));
+      return { authenticated: true, ...authData };
     } else {
       connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
+      return { authenticated: false, message: 'Authentication failed' };
     }
   } catch (error) {
     console.error('Error during authentication:', error);
     connection.sendUTF(JSON.stringify({ type: 'LOGIN_FAILURE' }));
+    return { authenticated: false, message: error.message };
   }
 }
+
 
 
 async function handleShowAdminList(connection, msg) {
@@ -280,8 +373,6 @@ function notifyAdminsAboutNewChat(connection, chat_id) {
 async function handleMessage(connection, msg) {
   console.log('Processing MESSAGE:', msg);
   try {
-
-
     const chat_id = msg.chat_id || connection.chat_id;
     if (!chat_id) throw new Error('Chat ID is null. Cannot save message.');
 
@@ -294,22 +385,22 @@ async function handleMessage(connection, msg) {
         owner_id: connection.user_id || msg.owner_id,
         role: msg.role || (connection.role === 'admin' ? 'Admin' : 'Client'),
         IsAdmin: msg.IsAdmin,
-        chat_finalized: msg.chat_finalized
+        chat_finalized: msg.chat_finalized,
+        token: msg.token
       }),
     });
 
     if (!response.ok) throw new Error('Network response was not ok');
 
     const savedMessage = await response.json();
- 
 
     webSocketServer.connections.forEach((conn) => {
-      if (conn.chat_id === chat_id ) {
-        conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage }));
-      }
+      if (conn.chat_id === chat_id) {
+        conn.sendUTF(JSON.stringify({ type: 'MESSAGE', message: savedMessage}));
+      }   
     });
 
-    // Verificamos si el mensaje es de un cliente (IsAdmin === 0) y si tiene area_id
+    // Notificar a los admins si es un mensaje de cliente
     if (msg.IsAdmin === 0) {
       console.log('Notifying admins for area:', msg.area_id);
       await handleGetChats2(msg.area_id, msg.current_url);
@@ -321,6 +412,7 @@ async function handleMessage(connection, msg) {
     console.error('Error in handleMessage:', error);
   }
 }
+
 
 async function handleFileMessage(connection, msg) {
   console.log('Processing FILE MESSAGE:', msg);
