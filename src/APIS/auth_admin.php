@@ -17,7 +17,7 @@ $email_or_name = $_POST['email_or_name'];
 $password = isset($_POST['password']) ? $_POST['password'] : null;
 
 // Consultar solo en la tabla admin
-$sql = "SELECT id, area_id, name, type_admin, current_url FROM admin WHERE email = ? OR name = ?";
+$sql = "SELECT id, area_id, name, type_admin, current_url, token FROM admin WHERE email = ? OR name = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("ss", $email_or_name, $email_or_name);
 $stmt->execute();
@@ -34,7 +34,8 @@ if ($result->num_rows > 0) {
             'user_id' => $row['id'], 
             'name' => $row['name'],
             'type_admin' => $row['type_admin'],
-            'current_url' => $row['current_url']
+            'current_url' => $row['current_url'],
+            'token' => $row['token']
         ]);
     } else {
         echo json_encode(['role' => 'unknown', 'message' => 'Contraseña no proporcionada']);

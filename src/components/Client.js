@@ -55,10 +55,11 @@ function Client() {
 
   useEffect(() => {
     if (!ws) return;
-
+    const name = localStorage.getItem('name_client');
+    const token = localStorage.getItem('token_client');
     const fetchUnreadOwnersCount = async () => {
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS', token: token, email_or_name: name }));
     };
 
     ws.onopen = () => {
@@ -132,8 +133,10 @@ function Client() {
 
   const startFetchingUnreadOwnersCount = () => {
     const fetchUnreadOwnersCount = async () => {
+      const name = localStorage.getItem('name_client');
+      const token = localStorage.getItem('token_client');
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS', email_or_name: name, token: token }));
     };
 
     fetchUnreadOwnersCount();
@@ -143,13 +146,17 @@ function Client() {
 
   const handleSelectArea = (areaId, areaText) => {
     const userId = localStorage.getItem('user_id');
+    const name = localStorage.getItem('name_client');
+    const token = localStorage.getItem('token_client');
     setSelectedArea(areaId);
     setShowQuestions(false); //ocultar botones de seleccionar area
     setIsDisabled(false); // Habilitar input y botón
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
-      current_url : currentUrl
+      current_url : currentUrl,
+      token: token,
+      email_or_name: name
     }));
 
     // Enviar mensaje al chat sobre la selección del área
@@ -161,7 +168,9 @@ function Client() {
       IsAdmin: 0,
       area_id : selectedArea,
       timestamp: new Date().toISOString(),
-      current_url: currentUrl
+      current_url: currentUrl,
+      token: token,
+      email_or_name: name
     };
     
     // Enviar mensaje al servidor
@@ -175,23 +184,30 @@ function Client() {
   const handleLogin = (storedUserClient) => {
     const handleLoginResponse = (event) => {
       const msg = JSON.parse(event.data);
+      const name = localStorage.getItem('name_client');
+      const token = localStorage.getItem('token_client');
       if (msg.type === 'LOGIN_SUCCESS') {
         ws.send(JSON.stringify({
           type: 'GET_CHATS_CLIENT',
+          email_or_name: name,
           chat_id: localStorage.getItem('chat_id_client'),
-          current_url: currentUrl // Incluye la URL actual en la solicitud de chats
+          current_url: currentUrl, // Incluye la URL actual en la solicitud de chats
+          token: token
         }));
 
         ws.addEventListener('message', (event) => {
           const msg = JSON.parse(event.data);
           if (msg.type === 'CHATS_CLIENT') {
             const areaId = localStorage.getItem('area_id_client');
+            const name = localStorage.getItem('name_client');
             if (areaId) {
               setSelectedArea(areaId); // Actualiza selectedArea con el valor de localStorage
               ws.send(JSON.stringify({
                 type: 'SELECT_AREA',
                 area_id: areaId,
-                current_url: currentUrl // Incluye la URL actual en la selección de área
+                current_url: currentUrl, // Incluye la URL actual en la selección de área
+                token: token,
+                email_or_name: name
               }));
             } else {
               console.error('No area_id found in localStorage');
@@ -207,10 +223,11 @@ function Client() {
     };
 
     ws.addEventListener('message', handleLoginResponse);
-  
+    const token = localStorage.getItem('token_client');
     ws.send(JSON.stringify({
       type: 'LOGIN',
-      ...storedUserClient
+      ...storedUserClient,
+      token: token
     }));
   };  
 
@@ -219,8 +236,9 @@ function Client() {
       alert('No area selected or WebSocket connection not established.');
       return;
     }
-    
-    console.log(localStorage.getItem('name_client'))
+    const name = localStorage.getItem('name_client');
+    const token = localStorage.getItem('token_client');
+    console.log(localStorage.getItem(name))
     console.log(localStorage.getItem('chat_id_client'))
     // Evitar enviar el mensaje dos veces
     const message = {
@@ -231,7 +249,9 @@ function Client() {
       area_id : selectedArea,
       IsAdmin: 0,
       current_url: currentUrl,
-      chat_finalized: 0
+      chat_finalized: 0,
+      token: token,
+      email_or_name: name
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
@@ -251,11 +271,11 @@ function Client() {
 
   const handleReportClick = async () => {
     const userId = localStorage.getItem('user_id');
+    const token = localStorage.getItem('token_client');
     if (!ws || !userId) {
       alert('WebSocket connection not established or user_id not found.');
       return;
     }
-
     // Verificar si el área ya está seleccionada
     if (selectedArea === null) {
       handleSelectArea(3, 'Reporte realizado con éxito');
@@ -269,7 +289,8 @@ function Client() {
         IsAdmin: 0,
         area_id : selectedArea,
         timestamp: new Date().toISOString(),
-        current_url: currentUrl
+        current_url: currentUrl,
+        token: token
       };
       console.log('Sending report message with URL:', message); // Verificar el mensaje de reporte antes de enviarlo
       ws.send(JSON.stringify(message));
@@ -279,6 +300,7 @@ function Client() {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
+        token: token
       }));
     }, 500);
 
@@ -308,7 +330,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token : token
         };
   
         ws.send(JSON.stringify({
@@ -319,7 +342,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: token
         }));
       }
     } catch (error) {
@@ -332,6 +356,7 @@ function Client() {
   };
 
   const handleFileUpload = async (event) => {
+    const token = localStorage.getItem('token_client');
     const file = event.target.files[0];
     if (file) {
       // Verificar el tamaño del archivo
@@ -381,7 +406,8 @@ function Client() {
           owner_id: localStorage.getItem('user_id'),
           area_id: selectedArea,
           IsAdmin: 0,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: token
         };
   
         // Enviar el mensaje a través del WebSocket

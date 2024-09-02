@@ -37,10 +37,12 @@ function Login() {
             localStorage.setItem('password', msg.password);
             localStorage.setItem('type_admin', msg.type_admin);
             localStorage.setItem('current_url', msg.current_url);
+            localStorage.setItem('token_admin', msg.token);
             navigate('/admin');
           } else if (msg.role === 'client') {
             localStorage.setItem('name_client', msg.name);
             localStorage.setItem('user_id_client', msg.user_id);
+            localStorage.setItem('token_client', msg.token);
             navigate('/client');
           }
         } else if (msg.type === 'LOGIN_FAILURE') {
