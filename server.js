@@ -3,7 +3,9 @@ const http = require('http');
 const { type } = require('os');
 const { Await } = require('react-router-dom');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
+const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = 'Hugopm123'; // Replace with a secure secret key
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
   LOGIN: 'LOGIN',
@@ -55,6 +57,15 @@ const webSocketServer = new WebSocketServer({
 function originIsAllowed(origin) {
   return true; // Permitir todas las conexiones
 }
+function verifyToken(token) {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded;
+  } catch (error) {
+    console.error('Invalid token:', error.message);
+    return null;
+  }
+}
 
 webSocketServer.on('request', (request) => {
   if (!originIsAllowed(request.origin)) {
@@ -97,11 +108,20 @@ webSocketServer.on('request', (request) => {
       console.log('Received message:', msg);
 
 
+      // Verify JWT for protected routes
+      if (msg.type !== MESSAGE_TYPES.LOGIN) {
+        const decoded = verifyToken(msg.token);
+        if (!decoded) {
+          connection.sendUTF(JSON.stringify({ error: 'Invalid or expired token' }));
+          return;
+        }
+        connection.user = decoded;
+      }
+
       try {
         switch (msg.type) {
           case MESSAGE_TYPES.LOGIN:
             await handleLogin(connection, msg);
-            isAuthenticated = true
             break;
           case MESSAGE_TYPES.SELECT_AREA:
             await handleSelectArea(connection, msg);
@@ -187,17 +207,41 @@ async function handleLogin(connection, msg) {
     
     const authData = await response.json();
     console.log('Auth data:', authData);
-    connection.role = authData.role;
-    connection.user_id = authData.user_id;
-    connection.name = authData.name;
-    connection.area_id = authData.area_id;
-    connection.type_admin = authData.type_admin
-    connection.current_url = authData.current_url
+
+    // Generate JWT
+    const token = jwt.sign(
+      { 
+        user_id: authData.user_id, 
+        role: authData.role, 
+        name: authData.name,
+        area_id: authData.area_id,
+        type_admin: authData.type_admin
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin, current_url: authData.current_url }));
+      connection.sendUTF(JSON.stringify({ 
+        type: 'LOGIN_SUCCESS', 
+        role: 'admin', 
+        user_id: authData.user_id, 
+        IsAdmin: 1, 
+        area_id: authData.area_id, 
+        name: authData.name, 
+        type_admin: authData.type_admin, 
+        current_url: authData.current_url,
+        token: token
+      }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name,}));
+      connection.sendUTF(JSON.stringify({ 
+        type: 'LOGIN_SUCCESS', 
+        role: 'client', 
+        user_id: authData.user_id, 
+        IsAdmin: 0, 
+        name: authData.name,
+        token: token
+      }));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',

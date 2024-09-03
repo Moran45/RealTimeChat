@@ -25,6 +25,7 @@ function Admin() {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false); // Estado para filtro de no leídos
   const messagesEndRef = useRef(null);
   const [editingAdminIndex, setEditingAdminIndex] = useState(null);
+  const token = localStorage.getItem('token')
   const [newUserData, setNewUserData] = useState({
     user_id: '',
     name: '',
@@ -32,7 +33,8 @@ function Admin() {
     area_id: '',
     created_at: '',
     contrasena: '',
-    type_admin: ''
+    type_admin: '',
+    token: ''
   });
   const [currentAdminArea, setCurrentAdminArea] = useState(() => {
     const storedArea = localStorage.getItem('area_id');
@@ -49,6 +51,7 @@ function Admin() {
       email_or_name: localStorage.getItem('name'),
       type_admin: localStorage.getItem('type_admin'),
       password: localStorage.getItem('password'),
+      token: token
     };
 
     if (storedUser.user_id && storedUser.area_id) {
@@ -70,7 +73,8 @@ function Admin() {
         localStorage.setItem('type_admin', msg.type_admin);
 
         ws.send(JSON.stringify({
-          type: 'GET_CHATS'
+          type: 'GET_CHATS',
+          token: token
         }));
         ws.removeEventListener('message', handleLoginResponse);
       } else if (msg.type === 'LOGIN_FAILURE') {
@@ -104,7 +108,7 @@ function Admin() {
           setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
         }
       } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
       }
 
     };
@@ -128,11 +132,11 @@ function Admin() {
           setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
         }
       } else if (msg.type === 'NEW_CHAT') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
       } else if (msg.type === 'CHAT_REDIRECTED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
       } else if (msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+        ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
       } else if (msg.type === 'NEW_CLIENT') {
         setClients((prevClients) => {
           if (!prevClients.find(client => client.name === msg.client)) {
@@ -166,7 +170,7 @@ function Admin() {
       }
     };
 
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
 
     return () => {
       ws.removeEventListener('message', handleNewMessage);
@@ -195,8 +199,12 @@ function Admin() {
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
     setShowRedirectButtons(true);
-    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', chat_id: chat.chat_id }));
-    ws.send(JSON.stringify({ type: 'MARK_AS_READ', chat_id: chat.chat_id }));
+    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', 
+      chat_id: chat.chat_id,  
+      token: token}));
+    ws.send(JSON.stringify({ type: 'MARK_AS_READ', 
+      chat_id: chat.chat_id,
+      token: token }));
   };
 
   const handleCreateUser = () => {
@@ -215,7 +223,8 @@ function Admin() {
       type_admin: newUserData.type_admin,
       user_mom: storedUser.name,
       user_mom_id: storedUser.user_id,
-      current_url: storedUser.current_url
+      current_url: storedUser.current_url,
+      token: token
     };
 
     console.log('New user:', message);
@@ -228,7 +237,8 @@ function Admin() {
     const storedId = localStorage.getItem('user_id');
     const message = {
       type: 'GET_ADMINS',
-      user_mom_id: storedId
+      user_mom_id: storedId,
+      token: token
     };
     ws.send(JSON.stringify(message));
   };
@@ -247,6 +257,7 @@ function Admin() {
     localStorage.removeItem('name');
     localStorage.removeItem('type_admin');
     localStorage.removeItem('password');
+    localStorage.removeItem('token')
   
     setUser(null);
     setChats([]);
@@ -266,9 +277,10 @@ function Admin() {
       type: 'REDIRECT_CHAT',
       chat_id: selectedChat.chat_id,
       new_area_id: newAreaId,
+      token: token
     }));
 
-    ws.send(JSON.stringify({ type: 'GET_CHATS' }));
+    ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
     setShowRedirectButtons(false);
   };
 
@@ -285,6 +297,7 @@ function Admin() {
       owner_id: localStorage.getItem('user_id'),
       role: 'Admin',
       IsAdmin: 1,
+      token: token
     };
 
     ws.send(JSON.stringify(message));
@@ -303,7 +316,8 @@ function Admin() {
         owner_id: localStorage.getItem('user_id'),
         IsAdmin: 1,
         role: 'Admin',
-        chat_finalized: 1
+        chat_finalized: 1,
+        token: token
       };
 
       ws.send(JSON.stringify(message));
@@ -495,7 +509,8 @@ function Admin() {
           fileName: file.name,
           chat_id: selectedChat.chat_id,
           owner_id: localStorage.getItem('user_id'),
-          IsAdmin: 1
+          IsAdmin: 1,
+          token: token
         };
   
         // Enviar el mensaje a través del WebSocket
