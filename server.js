@@ -2,7 +2,10 @@ const WebSocketServer = require('websocket').server;
 const http = require('http');
 const { type } = require('os');
 const { Await } = require('react-router-dom');
+const { RateLimiterMemory } = require('rate-limiter-flexible');
+const jwt = require('jsonwebtoken');
 
+const SECRET_KEY = 'ContraseñaPruebaJWT12PM'; 
 const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
 const MESSAGE_TYPES = {
   LOGIN: 'LOGIN',
@@ -22,6 +25,19 @@ const MESSAGE_TYPES = {
   GET_ADMINS: 'GET_ADMINS',
   DELETE_CHAT: 'DELETE_CHAT'
 };
+
+// Rate limiter para conexiones por segundo (per IP)
+const rateLimiterIP = new RateLimiterMemory({
+  points: 5, // 5 connections
+  duration: 1, // per 1 second
+});
+
+// Rate limiter para los mensajes por segundo
+const rateLimiterConnection = new RateLimiterMemory({
+  points: 10, // 10 mensajes
+  duration: 1, // por 1 second
+});
+
 
 async function fetchWrapper(url, options) {
   const fetch = (await import('node-fetch')).default;
@@ -43,6 +59,7 @@ function originIsAllowed(origin) {
   return allowedOrigins.includes(origin);
 }
 
+
 webSocketServer.on('request', (request) => {
   if (!originIsAllowed(request.origin)) {
     request.reject();
@@ -50,81 +67,126 @@ webSocketServer.on('request', (request) => {
     return;
   }
 
-  const connection = request.accept(null, request.origin);
-  console.log('Connection accepted from origin:', request.origin);
-
-  connection.on('message', async (message) => {
-    let msg;
-    
-    try { //try catch para retornar si el mensjaes no json y evitar desconexion
-      msg = JSON.parse(message.utf8Data);
-    } catch (error) {
-      console.error('Invalid JSON message received:', error);
-      return; 
-    }
-
-    console.log('Received message:', msg);
-
+  const ip = request.remoteAddress;
+  const handleRequest = async () => {
     try {
-      switch (msg.type) {
-        case MESSAGE_TYPES.LOGIN:
-          await handleLogin(connection, msg);
-          isAuthenticated = true
-          break;
-        case MESSAGE_TYPES.SELECT_AREA:
-          await handleSelectArea(connection, msg);
-          break;
-        case MESSAGE_TYPES.MESSAGE:
-          await handleMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.REPORT_MESSAGE:
-          await handleReportMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.FINALIZE:
-          await handleMessage(connection, msg);
-          break;
-        case MESSAGE_TYPES.REDIRECT_CHAT:
-          await handleRedirectChat(connection, msg);
-          break;
-        case MESSAGE_TYPES.GET_CHATS:
-          await handleGetChats(connection);
-          break;
-        case MESSAGE_TYPES.GET_CHATS2:
-          await handleGetChats2(msg.area_id, msg.current_url);
-          break;
-        case MESSAGE_TYPES.GET_CHATS_CLIENT:
-          await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
-          break; 
-        case MESSAGE_TYPES.GET_CHAT_MESSAGES:
-          await handleGetChatMessages(connection, msg);
-          break;
-        case MESSAGE_TYPES.MARK_AS_READ:
-          await handleMarkAsRead(msg);
-          break;
-        case MESSAGE_TYPES.DELETE_CHAT:
-          await handleDeleteChat(msg);
-          break;
-        case MESSAGE_TYPES.GET_ADMINS:
-          await handleShowAdminList(connection, msg);
-          break;
-        case MESSAGE_TYPES.CREATE_ADMIN:
-          await handleCreateAdmin(connection, msg);
-          break;
-        case MESSAGE_TYPES.FILE:
-            // Manejar los mensajes de archivo
-           await handleFileMessage(msg, connection);
-            break;
-        default:
-          console.log('Unknown message type:', msg.type);
-      }
-    } catch (error) {
-      console.error(`Error processing message of type ${msg.type}:`, error);
+      await rateLimiterIP.consume(ip);
+    } catch (rejRes) {
+      request.reject(429, 'Too Many Requests');
+      console.log(`Connection from IP ${ip} rejected due to rate limiting.`);
+      return;
     }
-  });
 
-  connection.on('close', (reasonCode, description) => {
-    console.log('Client has disconnected.');
-  });
+    const connection = request.accept(null, request.origin);
+    console.log('Connection accepted from origin:', request.origin);
+
+    let token = null;
+
+    connection.on('message', async (message) => {
+      try {
+        await rateLimiterConnection.consume(connection.remoteAddress);
+      } catch (rejRes) {
+        connection.sendUTF(JSON.stringify({ error: 'Too Many Requests' }));
+        return;
+      }
+
+      let msg;
+      try {
+        msg = JSON.parse(message.utf8Data);
+      } catch (error) {
+        console.error('Invalid JSON message received:', error);
+        return;
+      }
+
+      console.log('Received message:', msg);
+
+      if (msg.type !== MESSAGE_TYPES.LOGIN) {
+        const token = msg.token;
+        if (!token) {
+          connection.sendUTF(JSON.stringify({ error: 'Token missing' }));
+          connection.close();
+          return;
+        }
+
+        try {
+          const decoded = jwt.verify(token, SECRET_KEY);
+          connection.user_id = decoded.user_id;
+          connection.role = decoded.role;
+          connection.area_id = decoded.area_id;
+        } catch (error) {
+          console.error('Invalid token:', error);
+          connection.sendUTF(JSON.stringify({ error: 'Invalid token' }));
+          connection.close();
+          return;
+        }
+      }
+
+      try {
+        switch (msg.type) {
+          case MESSAGE_TYPES.LOGIN:
+            await handleLogin(connection, msg);
+            isAuthenticated = true
+            break;
+          case MESSAGE_TYPES.SELECT_AREA:
+            await handleSelectArea(connection, msg);
+            break;
+          case MESSAGE_TYPES.MESSAGE:
+            await handleMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.REPORT_MESSAGE:
+            await handleReportMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.FINALIZE:
+            await handleMessage(connection, msg);
+            break;
+          case MESSAGE_TYPES.REDIRECT_CHAT:
+            await handleRedirectChat(connection, msg);
+            break;
+          case MESSAGE_TYPES.GET_CHATS:
+            await handleGetChats(connection);
+            break;
+          case MESSAGE_TYPES.GET_CHATS2:
+            await handleGetChats2(msg.area_id, msg.current_url);
+            break;
+          case MESSAGE_TYPES.GET_CHATS_CLIENT:
+            await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
+            break; 
+          case MESSAGE_TYPES.GET_CHAT_MESSAGES:
+            await handleGetChatMessages(connection, msg);
+            break;
+          case MESSAGE_TYPES.MARK_AS_READ:
+            await handleMarkAsRead(msg);
+            break;
+          case MESSAGE_TYPES.DELETE_CHAT:
+            await handleDeleteChat(msg);
+            break;
+          case MESSAGE_TYPES.GET_ADMINS:
+            await handleShowAdminList(connection, msg);
+            break;
+          case MESSAGE_TYPES.CREATE_ADMIN:
+            await handleCreateAdmin(connection, msg);
+            break;
+          case MESSAGE_TYPES.FILE:
+              // Manejar los mensajes de archivo
+             await handleFileMessage(msg, connection);
+              break;
+          default:
+            console.log('Unknown message type:', msg.type);
+        }
+      } catch (error) {
+        console.error(`Error processing message of type ${msg.type}:`, error);
+      }
+    });
+
+    connection.on('close', (reasonCode, description) => {
+      console.log('Client has disconnected.');
+      if (token) {
+        authenticatedTokens.delete(token);
+      }
+    });
+  };
+
+  handleRequest();
 });
 
 
@@ -149,6 +211,14 @@ async function handleLogin(connection, msg) {
     
     const authData = await response.json();
     console.log('Auth data:', authData);
+
+        // Generar JWT
+        const token = jwt.sign({
+          user_id: authData.user_id,
+          role: authData.role,
+          area_id: authData.area_id,
+        }, SECRET_KEY, { expiresIn: '1h' }); // El token expira en 1 hora
+
     connection.role = authData.role;
     connection.user_id = authData.user_id;
     connection.name = authData.name;
@@ -157,9 +227,22 @@ async function handleLogin(connection, msg) {
     connection.current_url = authData.current_url
 
     if (authData.role === 'admin') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'admin', user_id: authData.user_id, IsAdmin: 1, area_id: authData.area_id, name: authData.name, type_admin: authData.type_admin, current_url: authData.current_url }));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', 
+        role: 'admin', 
+        user_id: authData.user_id, 
+        IsAdmin: 1, 
+        area_id: authData.area_id, 
+        name: authData.name, 
+        type_admin: authData.type_admin, 
+        current_url: authData.current_url,
+        token }));
     } else if (authData.role === 'client') {
-      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', role: 'client', user_id: authData.user_id, IsAdmin: 0, name: authData.name,}));
+      connection.sendUTF(JSON.stringify({ type: 'LOGIN_SUCCESS', 
+        role: 'client', 
+        user_id: authData.user_id, 
+        IsAdmin: 0, 
+        name: authData.name,
+      token}));
       connection.sendUTF(JSON.stringify({
         type: 'WELCOME',
         message: 'Bienvenido! ¿Qué problema tienes? ',

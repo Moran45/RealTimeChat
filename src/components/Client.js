@@ -19,6 +19,7 @@ function Client() {
   const ws = useWebSocket();
   const messagesEndRef = useRef(null);
   const [isDisabled, setIsDisabled] = useState(false);
+  const token = localStorage.getItem('token')
 
   useEffect(() => {
     console.log('Current URL:', currentUrl); // Verificar que la URL se captura correctamente
@@ -58,7 +59,7 @@ function Client() {
 
     const fetchUnreadOwnersCount = async () => {
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS',  token: token }));
     };
 
     ws.onopen = () => {
@@ -133,7 +134,7 @@ function Client() {
   const startFetchingUnreadOwnersCount = () => {
     const fetchUnreadOwnersCount = async () => {
       console.log('Fetching unread owners count...');
-      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS' }));
+      ws.send(JSON.stringify({ type: 'GET_UNREAD_OWNERS', token: token }));
     };
 
     fetchUnreadOwnersCount();
@@ -149,7 +150,8 @@ function Client() {
     ws.send(JSON.stringify({
       type: 'SELECT_AREA',
       area_id: areaId,
-      current_url : currentUrl
+      current_url : currentUrl,
+      token: token
     }));
 
     // Enviar mensaje al chat sobre la selección del área
@@ -161,7 +163,8 @@ function Client() {
       IsAdmin: 0,
       area_id : selectedArea,
       timestamp: new Date().toISOString(),
-      current_url: currentUrl
+      current_url: currentUrl,
+      token: token
     };
     
     // Enviar mensaje al servidor
@@ -179,7 +182,8 @@ function Client() {
         ws.send(JSON.stringify({
           type: 'GET_CHATS_CLIENT',
           chat_id: localStorage.getItem('chat_id_client'),
-          current_url: currentUrl // Incluye la URL actual en la solicitud de chats
+          current_url: currentUrl, // Incluye la URL actual en la solicitud de chats
+          token: token
         }));
 
         ws.addEventListener('message', (event) => {
@@ -191,7 +195,8 @@ function Client() {
               ws.send(JSON.stringify({
                 type: 'SELECT_AREA',
                 area_id: areaId,
-                current_url: currentUrl // Incluye la URL actual en la selección de área
+                current_url: currentUrl, // Incluye la URL actual en la selección de área
+                token: token
               }));
             } else {
               console.error('No area_id found in localStorage');
@@ -210,7 +215,8 @@ function Client() {
   
     ws.send(JSON.stringify({
       type: 'LOGIN',
-      ...storedUserClient
+      ...storedUserClient,
+      token: token
     }));
   };  
 
@@ -231,7 +237,8 @@ function Client() {
       area_id : selectedArea,
       IsAdmin: 0,
       current_url: currentUrl,
-      chat_finalized: 0
+      chat_finalized: 0,
+      token: token
     };
     console.log('Sending message with URL:', message); // Verificar el mensaje antes de enviarlo
 
@@ -269,7 +276,8 @@ function Client() {
         IsAdmin: 0,
         area_id : selectedArea,
         timestamp: new Date().toISOString(),
-        current_url: currentUrl
+        current_url: currentUrl,
+        token: token
       };
       console.log('Sending report message with URL:', message); // Verificar el mensaje de reporte antes de enviarlo
       ws.send(JSON.stringify(message));
@@ -279,6 +287,7 @@ function Client() {
       ws.send(JSON.stringify({
         type: 'START_CHAT',
         user_id: userId,
+        token: token
       }));
     }, 500);
 
@@ -308,7 +317,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: token
         };
   
         ws.send(JSON.stringify({
@@ -319,7 +329,8 @@ function Client() {
           chat_id: chatId,
           area_id: selectedArea,
           owner_id: userId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: token
         }));
       }
     } catch (error) {
@@ -381,7 +392,8 @@ function Client() {
           owner_id: localStorage.getItem('user_id'),
           area_id: selectedArea,
           IsAdmin: 0,
-          current_url: currentUrl
+          current_url: currentUrl,
+          token: token
         };
   
         // Enviar el mensaje a través del WebSocket
