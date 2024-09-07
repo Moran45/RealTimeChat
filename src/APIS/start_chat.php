@@ -40,7 +40,10 @@ $result = $stmt->get_result();
 
 if ($row = $result->fetch_assoc()) {
     // Chat existente encontrado
-    echo json_encode(['chat_id' => $row['id']]);
+    echo json_encode([
+        'chat_id' => $row['id'],
+        'area_id' => $area_id // Se incluye el area_id en el JSON de respuesta
+    ]);
 } else {
     // Crear un nuevo chat si no existe uno abierto
     $sql = "INSERT INTO chats (user_id, area_id, created_at, updated_at, current_url, user_name) VALUES (?, ?, NOW(), NOW(), ?, ?)";
@@ -48,7 +51,10 @@ if ($row = $result->fetch_assoc()) {
     $stmt->bind_param("iiss", $user_id, $area_id, $current_url, $name); // 's' para current_url y name
 
     if ($stmt->execute()) {
-        echo json_encode(['chat_id' => $stmt->insert_id]);
+        echo json_encode([
+            'chat_id' => $stmt->insert_id,
+            'area_id' => $area_id // Se incluye el area_id en el JSON al crear un nuevo chat
+        ]);
     } else {
         echo json_encode(['error' => 'Error al iniciar el chat']);
     }

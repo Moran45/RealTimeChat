@@ -318,7 +318,7 @@ async function handleSelectArea(connection, msg) {
 
 async function getOrCreateChat(connection) {
   // Verificar si el chat ya existe
-  console.log("buscando chat con: " + connection.current_url + " user_ name: " + connection.name);
+  console.log("buscando chat con: " + connection.current_url + " user_ name: " + connection.name + " areaid: " + connection.area_id);
   const checkChatResponse = await fetchWrapper(`${API_BASE_URL}/check_chat.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -331,7 +331,8 @@ async function getOrCreateChat(connection) {
 
   if (chatData.chat_id) {
     connection.chat_id = chatData.chat_id;
-    console.log("el chat ya existe " + connection.current_url)
+    connection.area_id = chatData.area_id
+    console.log("el chat ya existe " + connection.current_url + " area_id: " + connection.area_id)
     return chatData;
   } else {
     // Crear un nuevo chat si no existe
@@ -346,6 +347,7 @@ async function getOrCreateChat(connection) {
 
     const newChatData = await chatResponse.json();
     connection.chat_id = newChatData.chat_id;
+    connection.area_id= newChatData.area_id
     return newChatData;
   }
 }

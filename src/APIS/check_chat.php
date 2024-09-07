@@ -31,9 +31,15 @@ $stmt->store_result();
 if ($stmt->num_rows > 0) {
     $stmt->bind_result($chat_id);
     $stmt->fetch();
-    echo json_encode(['chat_id' => $chat_id]);
+    echo json_encode([
+        'chat_id' => $chat_id,
+        'area_id' => $area_id
+    ]);
 } else {
-    echo json_encode(['chat_id' => null]);
+    echo json_encode([
+        'chat_id' => null,
+        'area_id' => null
+    ]);
 }
 
 $stmt->close();
