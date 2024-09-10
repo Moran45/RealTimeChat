@@ -305,7 +305,7 @@ async function handleSelectArea(connection, msg) {
   connection.current_url = msg.current_url;
 
   try {
-    const chatData = await getOrCreateChat(connection);
+    const chatData = await getOrCreateChat(connection, msg);
     console.log('Chat data:', chatData);
 
     // Enviar la respuesta al cliente con el área seleccionada y current_url
@@ -316,7 +316,7 @@ async function handleSelectArea(connection, msg) {
   }
 }
 
-async function getOrCreateChat(connection) {
+async function getOrCreateChat(connection, msg) {
   // Verificar si el chat ya existe
   console.log("buscando chat con: " + connection.current_url + " user_ name: " + connection.name + " areaid: " + connection.area_id);
   const checkChatResponse = await fetchWrapper(`${API_BASE_URL}/check_chat.php`, {
@@ -328,19 +328,20 @@ async function getOrCreateChat(connection) {
   if (!checkChatResponse.ok) throw new Error('Network response was not ok');
 
   const chatData = await checkChatResponse.json();
+  console.log("El area id es : " + msg.area_id)
 
   if (chatData.chat_id) {
     connection.chat_id = chatData.chat_id;
     connection.area_id = chatData.area_id
-    console.log("el chat ya existe " + connection.current_url + " area_id: " + connection.area_id)
+    console.log("el chat ya existe " + connection.current_url + " area_id: " + msg.area_id)
     return chatData;
   } else {
     // Crear un nuevo chat si no existe
-    console.log("error no existe un chat, creando nuevo chat con url " + connection.current_url)
+    console.log("error no existe un chat, creando nuevo chat con url " + connection.current_url + msg.area_id)
     const chatResponse = await fetchWrapper(`${API_BASE_URL}/start_chat.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ user_id: connection.user_id, area_id: connection.area_id, current_url: connection.current_url, name:connection.name }),
+      body: new URLSearchParams({ user_id: connection.user_id, area_id: msg.area_id, current_url: connection.current_url, name:connection.name }),
     });
 
     if (!chatResponse.ok) throw new Error('Network response was not ok');
