@@ -124,7 +124,11 @@ function Admin() {
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
-      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
+      }else if (msg.type === 'NEW_TOKEN'){
+        localStorage.setItem('token', msg.token);
+        console.log("El nuevo token es: " + token)
+      }
+       else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         setMessages(msg.messages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
         setMessages((prev) => [...prev, msg.message]);
