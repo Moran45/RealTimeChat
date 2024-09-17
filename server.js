@@ -114,10 +114,25 @@ webSocketServer.on('request', (request) => {
           connection.role = decoded.role;
           connection.area_id = decoded.area_id;
         } catch (error) {
-          console.error('Invalid token:', error);
-          connection.sendUTF(JSON.stringify({ error: 'Invalid token' }));
-          connection.close();
-          return;
+          if (error.name === 'TokenExpiredError') {
+            // Cuando el token expira generamos uno nuevo
+            const newToken = jwt.sign({
+              user_id: connection.user_id,
+              role: connection.role,
+              area_id: connection.area_id,
+            }, SECRET_KEY, { expiresIn: '1h' }); // Nueva expiración 
+    
+            // Enviar el nuevo token al cliente
+            connection.sendUTF(JSON.stringify({ type: 'NEW_TOKEN', token: newToken }));
+    
+            console.log('Token expired, new token issued');
+            return; // Opcional, si quieres permitir la ejecución con el nuevo token
+          } else {
+            console.error('Invalid token:', error);
+            connection.sendUTF(JSON.stringify({ error: 'Invalid token' }));
+            connection.close();
+            return;
+          }
         }
       }
 
