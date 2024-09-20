@@ -16,6 +16,7 @@ const MESSAGE_TYPES = {
   REDIRECT_CHAT: 'REDIRECT_CHAT',
   GET_CHATS: 'GET_CHATS',
   GET_CHATS2:'GET_CHATS',
+  GET_CHATS3:'GET_CHATS3',
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
   FILE:'FILE',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
@@ -163,6 +164,9 @@ webSocketServer.on('request', (request) => {
           case MESSAGE_TYPES.GET_CHATS2:
             await handleGetChats2(msg.area_id, msg.current_url);
             break;
+            case MESSAGE_TYPES.GET_CHATS3:
+              await handleGetChats3(msg);
+              break;
           case MESSAGE_TYPES.GET_CHATS_CLIENT:
             await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
             break; 
@@ -381,8 +385,6 @@ function notifyAdminsAboutNewChat(connection, chat_id) {
 async function handleMessage(connection, msg) {
   console.log('Processing MESSAGE:', msg);
   try {
-
-
     const chat_id = msg.chat_id || connection.chat_id;
     if (!chat_id) throw new Error('Chat ID is null. Cannot save message.');
 
@@ -572,6 +574,24 @@ async function handleGetChats2(area_id, current_url) {
     const chats = await response.json();
     webSocketServer.connections.forEach((conn) => {
       if (conn.role === 'admin' && conn.area_id === area_id) {
+        conn.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
+async function handleGetChats3(msg) {
+  console.log('nuevo mensaje enviado Processing GET_CHATS for area_id:', msg.area_id, msg.current_url);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${msg.area_id}&current_url=${msg.current_url}`);
+    console.log("api get chats");
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    webSocketServer.connections.forEach((conn) => {
+      if (msg.role === 'admin') {
         conn.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
       }
     });

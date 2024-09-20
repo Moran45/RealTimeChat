@@ -51,7 +51,8 @@ function Admin() {
       email_or_name: localStorage.getItem('name'),
       type_admin: localStorage.getItem('type_admin'),
       password: localStorage.getItem('password'),
-      token: token
+      token: token,
+      current_url: localStorage.getItem('current_url')
     };
 
     if (storedUser.user_id && storedUser.area_id) {
@@ -90,6 +91,35 @@ function Admin() {
       ...storedUser
     }));
   };
+
+  const handleLoginNewArea = (storedUser) => {
+    const handleLoginResponse = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'LOGIN_SUCCESS') {
+        // Store additional data
+        localStorage.setItem('type_admin', msg.type_admin);
+        ws.send(JSON.stringify({
+          type: 'GET_CHATS3',
+          token: token,
+          current_url: msg.current_url,
+          area_id: msg.area_id,
+          role : msg.role
+        }));
+        ws.removeEventListener('message', handleLoginResponse);
+      } else if (msg.type === 'LOGIN_FAILURE') {
+        navigate('/'); // Redirigir al login si el login falla
+        ws.removeEventListener('message', handleLoginResponse);
+      }
+    };
+
+    ws.addEventListener('message', handleLoginResponse);
+
+    ws.send(JSON.stringify({
+      type: 'LOGIN',
+      ...storedUser
+    }));
+  };
+
 
   useEffect(() => {
     if (!ws) return;
@@ -377,6 +407,7 @@ function Admin() {
         email_or_name: localStorage.getItem('name'),
         type_admin: localStorage.getItem('type_admin'),
         password: localStorage.getItem('password'),
+        current_url: localStorage.getItem('current_url')
       };
   
       const response = await fetch('https://phmsoft.tech/Ultimochatlojuro/edit_area_admin_full.php', {
@@ -399,7 +430,7 @@ function Admin() {
         // Actualiza el estado `currentAdminArea` y almacena en localStorage
         setCurrentAdminArea(areaId);
         localStorage.setItem('area_id', areaId);
-        handleLogin(storedUser);
+        handleLoginNewArea(storedUser);
       }
     } catch (error) {
       console.error('Error:', error);
