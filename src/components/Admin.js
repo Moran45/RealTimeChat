@@ -123,45 +123,24 @@ function Admin() {
 
   useEffect(() => {
     if (!ws) return;
-
-    const handleNewMessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'CHATS') {
-        setChats(msg.chats);
-        sortChats(msg.chats, 'desc');
-      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
-        setMessages(msg.messages || []);
-      } else if (msg.type === 'MESSAGE') {
-        setMessages((prev) => [...prev, msg.message]);
-        scrollToBottom();
-        if (isChatFinalized(selectedChat.chat_id)) {
-          setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
-        }
-      } else if (msg.type === 'NEW_CHAT' || msg.type === 'CHAT_REDIRECTED' || msg.type === 'CHAT_DELETED') {
-        ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
-      }
-
+  
+    const filterMessages = (messages) => {
+      return messages.filter(message => !message.admin_name);
     };
-
-    ws.onclose = () => {
-      setWsReady(false);
-      console.log('WebSocket connection closed.');
-    };
-
+  
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log('Received message:', msg);
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
-      }else if (msg.type === 'NEW_TOKEN'){
-        localStorage.setItem('token', msg.token);
-        console.log("El nuevo token es: " + token)
-      }
-       else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
-        setMessages(msg.messages);
+      } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
+        const filteredMessages = filterMessages(msg.messages);
+        setMessages(filteredMessages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
-        setMessages((prev) => [...prev, msg.message]);
+        if (!msg.message.admin_name) {
+          setMessages((prev) => [...prev, msg.message]);
+        }
         if (isChatFinalized(selectedChat?.chat_id)) {
           setFinalizedChats((prev) => prev.filter(id => id !== selectedChat.chat_id));
         }
@@ -178,6 +157,9 @@ function Admin() {
           }
           return prevClients;
         });
+      } else if (msg.type === 'NEW_TOKEN'){
+        localStorage.setItem('token', msg.token);
+        console.log("El nuevo token es: " + token);
       } else if (msg.type === 'GET_ADMINS') {
         setAdminList(msg.admins);
       } else {
@@ -186,12 +168,13 @@ function Admin() {
           if (!updatedMessages[msg.client]) {
             updatedMessages[msg.client] = [];
           }
-          if (!updatedMessages[msg.client].find(message => message.timestamp === msg.timestamp && message.text === msg.text)) {
+          // Filtrar mensajes aquí también
+          if (!msg.admin_name && !updatedMessages[msg.client].find(message => message.timestamp === msg.timestamp && message.text === msg.text)) {
             updatedMessages[msg.client].push(msg);
           }
           return updatedMessages;
         });
-
+  
         if (msg.role === 'Cliente') {
           setClients((prevClients) =>
             prevClients.map((client) =>
@@ -203,11 +186,16 @@ function Admin() {
         }
       }
     };
-
+  
+    ws.onclose = () => {
+      setWsReady(false);
+      console.log('WebSocket connection closed.');
+    };
+  
     ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
-
+  
     return () => {
-      ws.removeEventListener('message', handleNewMessage);
+      ws.removeEventListener('message', ws.onmessage);
     };
   }, [ws, selectedChat]);
 
@@ -233,12 +221,51 @@ function Admin() {
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
     setShowRedirectButtons(true);
-    ws.send(JSON.stringify({ type: 'GET_CHAT_MESSAGES', 
+    
+    // Enviar mensajes a través del WebSocket
+    ws.send(JSON.stringify({ 
+      type: 'GET_CHAT_MESSAGES', 
       chat_id: chat.chat_id,  
-      token: token}));
-    ws.send(JSON.stringify({ type: 'MARK_AS_READ', 
+      token: token 
+    }));
+    
+    ws.send(JSON.stringify({ 
+      type: 'MARK_AS_READ', 
       chat_id: chat.chat_id,
-      token: token }));
+      token: token 
+    }));
+  
+    // Mandar a llamar a la API
+    fetch('https://phmsoft.tech/Ultimochatlojuro/asig_admin.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ Id_Chat: chat.chat_id, nombre: localStorage.getItem('name') }),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error en la respuesta: ' + response.statusText);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.id) {
+        console.log("Id_Chat recibido de la API:", data.id);
+      } else if (data.error) {
+        console.error("Error en la respuesta de la API:", data.error);
+      } else {
+        console.error("Respuesta inesperada de la API:", data);
+      }
+    })
+    .catch(error => {
+      console.error('Error en la solicitud:', error);
+    });    
+  }; 
+
+  // Añadir esta nueva función para filtrar mensajes
+  const filterMessages = (messages) => {
+    return messages.filter(message => !message.admin_name);
   };
 
   const handleCreateUser = () => {
