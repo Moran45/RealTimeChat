@@ -23,7 +23,7 @@ $area_id = $_GET['area_id'];
 $current_url = $_GET['current_url'];
 
 // Consulta para obtener los chats filtrados por area_id y current_url
-$sql = "SELECT c.id as chat_id, user_name as user_name, 
+$sql = "SELECT c.id as chat_id, user_name as user_name, admin_name as admin_name, 
 (SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
 FROM chats c 
 WHERE c.area_id = ? AND c.current_url = ?;

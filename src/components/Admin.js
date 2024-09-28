@@ -124,21 +124,38 @@ function Admin() {
   useEffect(() => {
     if (!ws) return;
   
+    const currentAdminName = localStorage.getItem('name');
+  
+    const filterChats = (chats) => {
+      const adminName = localStorage.getItem('name');
+      return chats.filter(chat => {
+        const hasUnreadMessages = chat.unread_count > 0;
+        const isAssignedToAdmin = chat.admin_name === adminName;
+        const isNotFinalized = chat.finalizado === 0;
+        const isSelected = selectedChat && chat.chat_id === selectedChat.chat_id;
+  
+        return hasUnreadMessages || isAssignedToAdmin || isNotFinalized || isSelected;
+      });
+    };
+  
     const filterMessages = (messages) => {
-      return messages.filter(message => !message.admin_name);
+      return messages.filter(message => 
+        !message.admin_name || message.admin_name === currentAdminName
+      );
     };
   
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log('Received message:', msg);
       if (msg.type === 'CHATS') {
-        setChats(msg.chats);
-        sortChats(msg.chats, 'desc');
+        const filteredChats = filterChats(msg.chats);
+        setChats(filteredChats);
+        sortChats(filteredChats, 'desc');
       } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         const filteredMessages = filterMessages(msg.messages);
         setMessages(filteredMessages);
       } else if (msg.type === 'MESSAGE' && selectedChat) {
-        if (!msg.message.admin_name) {
+        if (!msg.message.admin_name || msg.message.admin_name === currentAdminName) {
           setMessages((prev) => [...prev, msg.message]);
         }
         if (isChatFinalized(selectedChat?.chat_id)) {
@@ -168,8 +185,8 @@ function Admin() {
           if (!updatedMessages[msg.client]) {
             updatedMessages[msg.client] = [];
           }
-          // Filtrar mensajes aquí también
-          if (!msg.admin_name && !updatedMessages[msg.client].find(message => message.timestamp === msg.timestamp && message.text === msg.text)) {
+          if ((!msg.admin_name || msg.admin_name === currentAdminName) && 
+              !updatedMessages[msg.client].find(message => message.timestamp === msg.timestamp && message.text === msg.text)) {
             updatedMessages[msg.client].push(msg);
           }
           return updatedMessages;
@@ -200,18 +217,38 @@ function Admin() {
   }, [ws, selectedChat]);
 
   const sortChats = (chatsToSort, order) => {
-    const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
-    const sortedChats = chatsWithUnreadMessages.sort((a, b) => {
+    const adminName = localStorage.getItem('name');
+    const selectedChatId = selectedChat ? selectedChat.chat_id : null;
+  
+    const visibleChats = chatsToSort.filter(chat => {
+      const hasUnreadMessages = chat.unread_count > 0;
+      const isAssignedToAdmin = chat.admin_name === adminName;
+      const isNotFinalized = chat.finalizado === 0;
+      const isSelected = chat.chat_id === selectedChatId;
+  
+      return hasUnreadMessages || isAssignedToAdmin || isNotFinalized || isSelected;
+    });
+  
+    const chatsWithUnreadMessages = visibleChats.filter(chat => chat.unread_count > 0);
+    const chatsWithoutUnreadMessages = visibleChats.filter(chat => chat.unread_count === 0);
+  
+    const sortByTimestamp = (a, b) => {
       const lastMessageA = a.messages[a.messages.length - 1];
       const lastMessageB = b.messages[b.messages.length - 1];
       return order === 'desc'
         ? new Date(lastMessageB.timestamp) - new Date(lastMessageA.timestamp)
         : new Date(lastMessageA.timestamp) - new Date(lastMessageB.timestamp);
-    });
-    const unchangedChats = chatsToSort.filter(chat => chat.unread_count === 0);
-    setChats([...sortedChats, ...unchangedChats]);
+    };
+  
+    const sortedUnreadChats = chatsWithUnreadMessages.sort(sortByTimestamp);
+    const sortedReadChats = chatsWithoutUnreadMessages.sort(sortByTimestamp);
+  
+    setChats([...sortedUnreadChats, ...sortedReadChats]);
     setSortOrder(order);
   };
+
+
+  
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -263,10 +300,6 @@ function Admin() {
     });    
   }; 
 
-  // Añadir esta nueva función para filtrar mensajes
-  const filterMessages = (messages) => {
-    return messages.filter(message => !message.admin_name);
-  };
 
   const handleCreateUser = () => {
     const storedUser = {
@@ -380,11 +413,35 @@ function Admin() {
         chat_finalized: 1,
         token: token
       };
-
+      
       ws.send(JSON.stringify(message));
       setFinalizedChats((prev) => [...prev, selectedChat.chat_id]);
       setShowModal(false);
       scrollToBottom();
+      // Mandar a llamar a la API
+      fetch('https://phmsoft.tech/Ultimochatlojuro/unasig_admin.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ Id_Chat: selectedChat.chat_id, nombre: localStorage.getItem('name') }), // Reemplaza 'tu_nombre_aqui' con el nombre deseado
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error en la respuesta: ' + response.statusText);
+            }
+            return response.text(); // Cambiar a text() en lugar de json()
+        })
+        .then(data => {
+            if (data === "success") { // Comprobar si el texto recibido es 'success'
+                console.log("Actualización exitosa: ", data);
+            } else {
+                console.error("Error en la respuesta de la API:", data);
+            }
+        })
+        .catch(error => {
+            console.error('Error en la solicitud:', error);
+        });
     }
   };
 
