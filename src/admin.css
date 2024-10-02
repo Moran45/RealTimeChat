@@ -247,3 +247,36 @@
   max-width: 100%; /* Ajusta el tamaño máximo de la imagen según tus necesidades */
   height: auto;
 }
+
+.sidebar {
+  width: 200px;
+  height: 50vh;
+  background-color: #f8f8f8;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebar-btn {
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 10px;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar-btn:hover {
+  background-color: #2980b9;
+}
+
+.chat-content {
+  margin-left: 220px; /* para que no cubra la barra lateral */
+  padding: 20px;
+  /* Agrega más estilos para mostrar los chats aquí */
+}

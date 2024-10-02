@@ -1,4 +1,5 @@
-<?php
+<?php 
+// API para obtener los chats de admin
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -23,11 +24,11 @@ $area_id = $_GET['area_id'];
 $current_url = $_GET['current_url'];
 
 // Consulta para obtener los chats filtrados por area_id y current_url
-$sql = "SELECT c.id as chat_id, user_name as user_name, 
-(SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
-FROM chats c 
-WHERE c.area_id = ? AND c.current_url = ?;
-";
+$sql = "SELECT c.id as chat_id, c.user_name, c.admin_name, c.IsAssigned, c.Finalizado,  
+               (SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id AND m.status = 'unread') as unread_count 
+        FROM chats c 
+        WHERE c.area_id = ? AND c.current_url = ?;";
+        
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("is", $area_id, $current_url); // Cambiar a 'is', no 'i,s'
 $stmt->execute();
@@ -53,7 +54,11 @@ while ($row = $result->fetch_assoc()) {
         $messages[] = $message_row;
     }
 
+    // Agregar los mensajes y los nuevos campos a la respuesta
     $row['messages'] = $messages;
+    $row['admin_name'] = $row['admin_name'];   // Campo admin_name
+    $row['IsAssigned'] = $row['IsAssigned'];   // Campo IsAssigned
+    $row['Finalizado'] = $row['Finalizado'];   // Campo Finalizado
     $chats[] = $row;
 }
 
