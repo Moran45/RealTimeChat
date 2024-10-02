@@ -6,7 +6,7 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 const jwt = require('jsonwebtoken');
 
 const SECRET_KEY = 'ContraseñaPruebaJWT12PM'; 
-const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro';
+const API_BASE_URL = 'https://phmsoft.tech/Ultimochatlojuro'; //api base defincion de la url
 const MESSAGE_TYPES = {
   LOGIN: 'LOGIN',
   SELECT_AREA: 'SELECT_AREA',
@@ -14,9 +14,12 @@ const MESSAGE_TYPES = {
   REPORT_MESSAGE: 'REPORT_MESSAGE',
   FINALIZE: 'FINALIZE',
   REDIRECT_CHAT: 'REDIRECT_CHAT',
-  GET_CHATS: 'GET_CHATS',
+  GET_CHATS: 'GET_CHATS', //Obtener chats sin asignar
   GET_CHATS2:'GET_CHATS',
   GET_CHATS3:'GET_CHATS3',
+  GET_CHATS_ASSIGNED:'GET_CHATS_ASSIGNED', //obtener chats abietos o asignados
+  GET_CHATS_FINALIZED:'GET_CHATS_FINALIZED', //obtener chats finalizados
+  GET_CHATS_ASSIGNED_BY_NAME:'GET_CHATS_ASSIGNED_BY_NAME', //obtener chats finalizados
   GET_CHATS_CLIENT: 'GET_CHATS_CLIENT', //Obtener chats 
   FILE:'FILE',
   GET_CHAT_MESSAGES: 'GET_CHAT_MESSAGES',
@@ -159,14 +162,23 @@ webSocketServer.on('request', (request) => {
             await handleRedirectChat(connection, msg);
             break;
           case MESSAGE_TYPES.GET_CHATS:
-            await handleGetChats(connection);
+            await handleGetChatsNotAssigned(connection);
+            break;
+          case MESSAGE_TYPES.GET_CHATS_ASSIGNED:
+            await handleGetChatsAssigned(connection);
+            break;
+          case MESSAGE_TYPES.GET_CHATS_FINALIZED:
+            await handleGetChatsFinalized(connection);
+            break;
+          case MESSAGE_TYPES.GET_CHATS_ASSIGNED_BY_NAME:
+            await handleGetChatsAssignedByName(connection, msg.admin_Name);
             break;
           case MESSAGE_TYPES.GET_CHATS2:
             await handleGetChats2(msg.area_id, msg.current_url);
             break;
-            case MESSAGE_TYPES.GET_CHATS3:
-              await handleGetChats3(msg);
-              break;
+          case MESSAGE_TYPES.GET_CHATS3:
+            await handleGetChats3(msg);
+            break;
           case MESSAGE_TYPES.GET_CHATS_CLIENT:
             await handleGetChatsClient(connection, msg.chat_id); // Pasa connection y chat_id
             break; 
@@ -356,7 +368,7 @@ async function getOrCreateChat(connection, msg) {
     return chatData;
   } else {
     // Crear un nuevo chat si no existe
-    console.log("error no existe un chat, creando nuevo chat con url " + connection.current_url + msg.area_id)
+    console.log("no existe un chat, creando nuevo chat con url " + connection.current_url + msg.area_id)
     const chatResponse = await fetchWrapper(`${API_BASE_URL}/start_chat.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -413,6 +425,7 @@ async function handleMessage(connection, msg) {
     });
 
     // Verificamos si el mensaje es de un cliente (IsAdmin === 0) y si tiene area_id
+    //AQui es donde se manda el mensaje para actuliazar las notificaciones cuando se manda un mensaje del lado del client
     if (msg.IsAdmin === 0) {
       console.log('Notifying admins for area:', msg.area_id);
       await handleGetChats2(msg.area_id, msg.current_url);
@@ -525,7 +538,7 @@ async function handleRedirectChat(connection, msg) {
   }
 }
 
-async function handleGetChats(connection) {
+async function handleGetChatsNotAssigned(connection) {
   console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id, 'current_url:', connection.current_url);
   if (connection.role !== 'admin') {
     console.log('User is not admin, aborting GET_CHATS. User details:', {
@@ -542,7 +555,92 @@ async function handleGetChats(connection) {
     if (!response.ok) throw new Error('Network response was not ok');
 
     const chats = await response.json();
-    connection.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
+    // Filtrar los chats que tienen IsAssigned igual a 0
+    const unassignedChats = chats.filter(chat => chat.IsAssigned === 0 && chat.Finalizado===0);
+
+    // Enviar solo los chats sin asignar al admin
+    connection.sendUTF(JSON.stringify({ type: 'CHATS', chats: unassignedChats }));
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
+async function handleGetChatsAssigned(connection) {
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id, 'current_url:', connection.current_url);
+  if (connection.role !== 'admin') {
+    console.log('User is not admin, aborting GET_CHATS. User details:', {
+      user_id: connection.user_id,
+      role: connection.role,
+      area_id: connection.area_id,
+      name: connection.name,
+    });
+    return;
+  }
+  console.log('Processing GET_CHATS for area_id:', connection.area_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}&current_url=${connection.current_url}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    // Filtrar los chats que tienen IsAssigned igual a 0
+    const unassignedChats = chats.filter(chat => chat.IsAssigned === 1 && chat.admin_name === connection.name);
+
+    // Enviar solo los chats sin asignar al admin
+    connection.sendUTF(JSON.stringify({ type: 'CHATS', chats: unassignedChats }));
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
+async function handleGetChatsFinalized(connection) {
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id, 'current_url:', connection.current_url);
+  if (connection.role !== 'admin') {
+    console.log('User is not admin, aborting GET_CHATS. User details:', {
+      user_id: connection.user_id,
+      role: connection.role,
+      area_id: connection.area_id,
+      name: connection.name,
+    });
+    return;
+  }
+  console.log('Processing GET_CHATS for area_id:', connection.area_id);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}&current_url=${connection.current_url}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    // Filtrar los chats que tienen finalizado = 1
+    const unassignedChats = chats.filter(chat => chat.Finalizado===1);
+
+    // Enviar solo los chats sin asignar al admin
+    connection.sendUTF(JSON.stringify({ type: 'CHATS', chats: unassignedChats }));
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+  }
+}
+
+async function handleGetChatsAssignedByName(connection, admin_Name) {
+  console.log('handleGetChats called for user:', connection.user_id, 'role:', connection.role, 'area_id:', connection.area_id, 'current_url:', connection.current_url, 'nombre del asesor del que se buscan chats asignados:', admin_Name);
+  if (connection.role !== 'admin') {
+    console.log('User is not admin, aborting GET_CHATS. User details:', {
+      user_id: connection.user_id,
+      role: connection.role,
+      area_id: connection.area_id,
+      name: connection.name,
+    });
+    return;
+  }
+  console.log('Processing GET_CHATS for area_id:', connection.area_id, 'asesor name:', admin_Name);
+  try {
+    const response = await fetchWrapper(`${API_BASE_URL}/get_chats.php?area_id=${connection.area_id}&current_url=${connection.current_url}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+
+    const chats = await response.json();
+    // Filtrar los chats que estan asignados por nombre del asesor 
+    const AssignedByNamesChats = chats.filter(chat => chat.admin_name===admin_Name && chat.IsAssigned === 1);
+
+    // Enviar solo los chats sin asignar al admin
+    connection.sendUTF(JSON.stringify({ type: 'CHATS', chats: AssignedByNamesChats }));
   } catch (error) {
     console.error('Error fetching chats:', error);
   }
@@ -574,7 +672,7 @@ async function handleGetChats2(area_id, current_url) {
     const chats = await response.json();
     webSocketServer.connections.forEach((conn) => {
       if (conn.role === 'admin' && conn.area_id === area_id) {
-        conn.sendUTF(JSON.stringify({ type: 'CHATS', chats }));
+        conn.sendUTF(JSON.stringify({ type: 'CHATS_NOTIF', chats }));
       }
     });
   } catch (error) {

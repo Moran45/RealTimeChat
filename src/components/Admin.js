@@ -26,6 +26,15 @@ function Admin() {
   const messagesEndRef = useRef(null);
   const [editingAdminIndex, setEditingAdminIndex] = useState(null);
   const token = localStorage.getItem('token')
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showUnassignedChats, setShowUnassignedChats] = useState(false);
+  const [assignedChats, setAssignedChats] = useState([]);
+  const [GetFinalizedChats, setGetFinalizedhats] = useState([]);
+  const [lastButtonPressed, setLastButtonPressed] = useState('');  // Estado para el último botón presionado
+  const [activeButtonAsesorIndex, setActiveButtonAsesorIndex] = useState(null);  // Estado para almacenar el índice del botón activo de la lsita de asesores
+  const [activeButtonAsesorName, setActiveButtonAsesorName] = useState(null); 
+  const [activeButtonEtiqueta, setActiveButtonEtiqueta] = useState(null);  // Estado para almacenar el índice del botón activo de la lsita de asesores
+  const nombreAdminEtiqueta = activeButtonAsesorName;
   const [newUserData, setNewUserData] = useState({
     user_id: '',
     name: '',
@@ -59,11 +68,13 @@ function Admin() {
       setUser(storedUser);
       if (ws) {
         handleLogin(storedUser);
+        handleShowAdminList();
       }
       setWelcomeMessage(`Hola! ${storedUser.name}, tipo de admin: ${storedUser.type_admin}`);
     } else {
       navigate('/');
     }
+
   }, [ws, navigate]);
 
   const handleLogin = (storedUser) => {
@@ -91,6 +102,69 @@ function Admin() {
       ...storedUser
     }));
   };
+
+  
+  const handleToggleUnassignedChats = () => {
+    setShowUnassignedChats(!showUnassignedChats);
+  };
+
+  const handleGetAssignedChats = () => {
+    if (ws && token) {
+      setLastButtonPressed('GET_CHATS_ASSIGNED');  // Actualiza el estado
+      ws.send(JSON.stringify({
+        type: 'GET_CHATS_ASSIGNED',
+        token: token
+      }));
+    }
+  };
+
+  const handleGetNotAssignedChats = () => {
+    if (ws && token) {
+      setLastButtonPressed('GET_CHATS');  // Actualiza el estado
+      ws.send(JSON.stringify({
+        type: 'GET_CHATS',
+        token: token
+      }));
+    }
+  };
+
+  const handleGetFinalizedChats = () => {
+    if (ws && token) {
+      setLastButtonPressed('GET_CHATS_FINALIZED');  // Actualiza el estado
+      ws.send(JSON.stringify({
+        type: 'GET_CHATS_FINALIZED',
+        token: token
+      }));
+    }
+  };
+
+  const handleGetAssignedByNameChats = (adminName) => {
+    setLastButtonPressed('GET_CHATS_ASSIGNED_BY_NAME');  // Actualiza el estado
+    if (ws && token) {
+      ws.send(JSON.stringify({
+        type: 'GET_CHATS_ASSIGNED_BY_NAME',
+        token: token,
+        admin_Name: adminName
+      }));
+    }
+  };
+
+ // Función que maneja el click en los botones lista de asesores
+  const handleButtonClassAsesor = (index, adminName) => {
+    setActiveButtonAsesorIndex(index);
+    console.log(activeButtonAsesorName);
+    handleGetAssignedByNameChats(adminName);
+    setActiveButtonAsesorName(adminName);
+    console.log(activeButtonAsesorName);
+    setActiveButtonEtiqueta(null); // Limpiar la selección de la etiqueta para que solo un botón esté seleccionado a la vez
+  };
+
+ // Función que maneja el click en los botones de filtro
+ const handleButtonClassEtiqueta = (filterType, action) => {
+  setActiveButtonEtiqueta(filterType);
+  action();
+  setActiveButtonAsesorIndex(null); // Limpiar la selección del asesor para que solo un botón esté seleccionado a la vez
+};
 
   const handleLoginNewArea = (storedUser) => {
     const handleLoginResponse = (event) => {
@@ -129,6 +203,10 @@ function Admin() {
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
+      } else if (msg.type === 'CHATS_ASSIGNED') {
+        setAssignedChats(msg.chats); // Actualiza la lista de chats asignados
+      } else if (msg.type === 'CHATS_FINALIZED') {
+        setGetFinalizedhats(msg.chats); // Actualiza la lista de chats finalizados
       } else if (msg.type === 'CHAT_MESSAGES' && msg.chat_id === selectedChat?.chat_id) {
         setMessages(msg.messages || []);
       } else if (msg.type === 'MESSAGE') {
@@ -154,7 +232,29 @@ function Admin() {
       if (msg.type === 'CHATS') {
         setChats(msg.chats);
         sortChats(msg.chats, 'desc');
-      }else if (msg.type === 'NEW_TOKEN'){
+      } else if (msg.type === 'CHATS_NOTIF'){
+        console.log(activeButtonAsesorName);
+        console.log(activeButtonEtiqueta);
+        console.log(activeButtonAsesorIndex); 
+        if (activeButtonEtiqueta) {
+          switch (activeButtonEtiqueta) {
+            case 'notAssigned':
+              ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
+              break;
+            case 'assigned':
+              ws.send(JSON.stringify({ type: 'GET_CHATS_ASSIGNED', token: token }));
+              break;
+            case 'finalized':
+                ws.send(JSON.stringify({ type: 'GET_CHATS_FINALIZED', token: token }));
+                break;
+            default:
+          }
+        } else if (nombreAdminEtiqueta === activeButtonAsesorName) {
+          // Si se ha seleccionado un asesor, enviamos la solicitud correspondiente
+          ws.send(JSON.stringify({ type: 'GET_CHATS_ASSIGNED_BY_NAME', admin_Name: nombreAdminEtiqueta, token: token }));
+        } 
+        
+      } else if (msg.type === 'NEW_TOKEN'){
         localStorage.setItem('token', msg.token);
         console.log("El nuevo token es: " + token)
       }
@@ -204,12 +304,17 @@ function Admin() {
       }
     };
 
-    ws.send(JSON.stringify({ type: 'GET_CHATS', token: token }));
+    if(lastButtonPressed === "GET_CHATS_ASSIGNED_BY_NAME"){
+      // Enviar un mensaje cuando el componente se inicializa
+      ws.send(JSON.stringify({ type: lastButtonPressed, token: token, admin_Name: activeButtonAsesorName }));
+    }else{
+      ws.send(JSON.stringify({ type: lastButtonPressed, token: token }));
+    };
 
     return () => {
       ws.removeEventListener('message', handleNewMessage);
     };
-  }, [ws, selectedChat]);
+  }, [ws, selectedChat, activeButtonAsesorName, activeButtonEtiqueta]);
 
   const sortChats = (chatsToSort, order) => {
     const chatsWithUnreadMessages = chatsToSort.filter(chat => chat.unread_count > 0);
@@ -230,6 +335,11 @@ function Admin() {
     if (storedUser) setUser(JSON.parse(storedUser));
   }, [navigate]);
 
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, [navigate]);
+
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
     setShowRedirectButtons(true);
@@ -239,6 +349,29 @@ function Admin() {
     ws.send(JSON.stringify({ type: 'MARK_AS_READ', 
       chat_id: chat.chat_id,
       token: token }));
+
+      const data = {
+        Id_Chat: chat.chat_id,
+        name: localStorage.getItem('name')
+      };
+      fetch('https://phmsoft.tech/Ultimochatlojuro/asig_admin.php', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),  
+      })
+      .then((response) => response.json())
+      .then((result) => {
+          if (result.success) {
+              console.log("Admin asignado correctamente:", result);
+          } else {
+              console.error("Error al asignar admin:", result.error);
+          }
+      })
+      .catch((error) => {
+          console.error("Error en la solicitud:", error);
+      });
   };
 
   const handleCreateUser = () => {
@@ -276,7 +409,8 @@ function Admin() {
     };
     ws.send(JSON.stringify(message));
   };
-
+  
+  
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewUserData({
@@ -683,25 +817,82 @@ function Admin() {
   </div>
 </div>
       <div className="admin-main d-flex">
-        <div className="admin-chat-list p-3">
-          <div className="d-flex justify-content-between mb-3">
-            <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
-            <button className="btn btn-light" onClick={handleSortChats}>
-              {sortOrder === 'desc' ? 'Mostrar más antiguos' : 'Mostrar más recientes'}
+      <div className="admin-chat-list p-3">
+  <div className="d-flex justify-content-between mb-3">
+    <h4>Mostrando {sortOrder === 'desc' ? 'más recientes' : 'más antiguos'}</h4>
+    <button className="btn btn-light" onClick={handleSortChats}>
+      {sortOrder === 'desc' ? 'Mostrar más antiguos' : 'Mostrar más recientes'}
+    </button>
+  </div>
+  
+  {/* Buscador*/}
+  <div className="mb-3">
+    <input 
+      type="text" 
+      className="form-control" 
+      placeholder="Buscar chat por nombre..." 
+      value={searchTerm} 
+      onChange={(e) => setSearchTerm(e.target.value)} 
+    />
+  </div>
+
+  <button className="btn btn-light mb-3" onClick={handleToggleUnreadFilter}>
+    {showUnreadOnly ? 'Todos' : 'No Leídos'}
+  </button>
+  <br></br>
+  <div>
+      <button
+        className={`btn mb-3 ${activeButtonEtiqueta === 'notAssigned' ? 'btn-primary' : 'btn-light'}`}
+        onClick={() => handleButtonClassEtiqueta('notAssigned', handleGetNotAssignedChats)}
+      >
+        👋 Sin asignar
+      </button>
+      <br />
+      <button
+        className={`btn mb-3 ${activeButtonEtiqueta === 'assigned' ? 'btn-primary' : 'btn-light'}`}
+        onClick={() => handleButtonClassEtiqueta('assigned', handleGetAssignedChats)}
+      >
+        📫 Abiertos
+      </button>
+      <br />
+      <button
+        className={`btn mb-3 ${activeButtonEtiqueta === 'finalized' ? 'btn-primary' : 'btn-light'}`}
+        onClick={() => handleButtonClassEtiqueta('finalized', handleGetFinalizedChats)}
+      >
+        ✅ Resueltos
+      </button>
+    </div>
+  <div>
+      <p>Lista de asesores</p>
+      {user && user.type_admin === 'Full' && (
+        <div className="admin-names-list">
+          {adminList.map((admin, index) => (
+            <button
+              key={index}
+              className={`btn m-2 ${activeButtonAsesorIndex === index ? 'btn-primary' : 'btn-light'}`} // Cambia la clase según si es el botón activo
+              onClick={() => handleButtonClassAsesor(index, admin.name)} // Al hacer clic se cambia el botón activo
+            >
+              {admin.name}
             </button>
-          </div>
-          <button className="btn btn-light mb-3" onClick={handleToggleUnreadFilter}>
-            {showUnreadOnly ? 'Todos' : 'No Leídos'}
-          </button>
-          {chats.filter(chat => !showUnreadOnly || chat.unread_count > 0).map((chat, index) => (
-            <div key={index} onClick={() => handleSelectChat(chat)} className={`admin-chat-item p-2 mb-2 ${selectedChat?.chat_id === chat.chat_id ? 'bg-info text-white' : 'bg-light'}`}>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>{chat.user_name} - {chat.unread_count} no leídos</div>
-                {chat.unread_count > 0 && <div className="unread-indicator"></div>}
-              </div>
-            </div>
           ))}
         </div>
+      )}
+    </div>
+
+  {chats
+  .filter(chat => !showUnassignedChats || chat.assigned_to === null)
+  .filter(chat => (!showUnreadOnly || chat.unread_count > 0))
+  .filter(chat => chat.user_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  .map((chat, index) => (
+    <div key={index} onClick={() => handleSelectChat(chat)} className={`admin-chat-item p-2 mb-2 ${selectedChat?.chat_id === chat.chat_id ? 'bg-info text-white' : 'bg-light'}`}>
+      <div className="d-flex justify-content-between align-items-center">
+        <div>{chat.user_name} - {chat.unread_count} no leídos</div>
+        {chat.unread_count > 0 && <div className="unread-indicator"></div>}
+      </div>
+    </div>
+  ))}
+</div>
+
         <div className="admin-chat-window p-3 flex-grow-1">
           {selectedChat ? (
             <>

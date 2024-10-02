@@ -1,3 +1,4 @@
+//Este codigo no se usa, solo se usa admin para las dos vistas, esta page puede ser usado para pruebas
 import React, { useEffect, useState, useRef } from 'react';
 import { useWebSocket } from '../WebSocketContext';
 import { useNavigate } from 'react-router-dom';
