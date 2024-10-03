@@ -226,6 +226,14 @@ function Admin() {
       console.log('WebSocket connection closed.');
     };
 
+    //funcion ping pong para enviar un mensaje ping al server cada 5 minutos y evitar desconexion del servidor por inactividad
+    const pingInterval = setInterval(() => { 
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'PING', token: token }));
+      }
+    }, 30000); // 5 minutos = 300,000 milisegundos
+    
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log('Received message:', msg);
@@ -339,6 +347,7 @@ function Admin() {
     const storedUser = localStorage.getItem('user');
     if (storedUser) setUser(JSON.parse(storedUser));
   }, [navigate]);
+  
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);

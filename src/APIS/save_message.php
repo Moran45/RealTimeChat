@@ -36,7 +36,7 @@ $stmt->bind_param("isisii", $chat_id, $text, $owner_id, $status, $IsAdmin, $chat
 if ($stmt->execute()) {
     // Si chat_finalized es igual a 1, actualizar la tabla chats
     if ($chat_finalized === 1) {
-        $updateSql = "UPDATE chats SET Finalizado = '1', IsAssigned = '0' WHERE id = ?";
+        $updateSql = "UPDATE chats SET Finalizado = '1', IsAssigned = '0', admin_name = null WHERE id = ?";
         $updateStmt = $conn->prepare($updateSql);
         if ($updateStmt === false) {
             echo json_encode(['error' => 'Error en la preparación de la consulta de actualización']);

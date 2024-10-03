@@ -23,18 +23,13 @@ $chat_id = $_GET['chat_id'];
 
 // Consulta para obtener los mensajes del chat desde el último chat finalizado con los campos especificados
 $sql = "SELECT m.text, m.timestamp, m.status, m.IsAdmin,
-       IF(m.IsAdmin = 0, 'Cliente', 'Admin') as role 
+       IF(m.IsAdmin = 0, 'Cliente', 'Admin') AS role 
 FROM message m 
 WHERE m.chat_id = ?
-  AND m.timestamp > (
-    SELECT MAX(timestamp)
-    FROM message
-    WHERE chat_id = ?
-      AND chat_finalized = 1
-  )
-ORDER BY m.timestamp";
+  AND m.timestamp >= NOW() - INTERVAL 1 WEEK
+ORDER BY m.timestamp;";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $chat_id, $chat_id);
+$stmt->bind_param("i", $chat_id);  // Solo se enlaza un parámetro ya que solo se usa $chat_id una vez
 $stmt->execute();
 $result = $stmt->get_result();
 

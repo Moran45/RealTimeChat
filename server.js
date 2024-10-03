@@ -27,7 +27,8 @@ const MESSAGE_TYPES = {
   GET_UNREAD_OWNERS: 'GET_UNREAD_OWNERS',
   CREATE_ADMIN: 'CREATE_ADMIN',
   GET_ADMINS: 'GET_ADMINS',
-  DELETE_CHAT: 'DELETE_CHAT'
+  DELETE_CHAT: 'DELETE_CHAT',
+  PING: 'PING' //declaracion de mensaje ping pong para evitar desconexion por inactividad
 };
 
 // Rate limiter para conexiones por segundo (per IP)
@@ -199,8 +200,11 @@ webSocketServer.on('request', (request) => {
             break;
           case MESSAGE_TYPES.FILE:
               // Manejar los mensajes de archivo
-             await handleFileMessage(msg, connection);
-              break;
+            await handleFileMessage(msg, connection);
+            break;
+          case MESSAGE_TYPES.PING: //cuando se recibe el mensaje ping se manda un mensaje pongo al cliente (admin.js)
+            connection.sendUTF(JSON.stringify({ type: 'PONG'}));
+            break;
           default:
             console.log('Unknown message type:', msg.type);
         }
