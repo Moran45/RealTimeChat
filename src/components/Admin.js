@@ -231,7 +231,7 @@ function Admin() {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'PING', token: token }));
       }
-    }, 30000); // 5 minutos = 300,000 milisegundos
+    }, 3000000); // 5 minutos = 300,000 milisegundos
     
 
     ws.onmessage = (event) => {
@@ -839,7 +839,7 @@ function Admin() {
     <input 
       type="text" 
       className="form-control" 
-      placeholder="Buscar chat por nombre..." 
+      placeholder="Buscar chat por nombre" 
       value={searchTerm} 
       onChange={(e) => setSearchTerm(e.target.value)} 
     />
@@ -857,13 +857,18 @@ function Admin() {
         👋 Sin asignar
       </button>
       <br />
-      <button
-        className={`btn mb-3 ${activeButtonEtiqueta === 'assigned' ? 'btn-primary' : 'btn-light'}`}
-        onClick={() => handleButtonClassEtiqueta('assigned', handleGetAssignedChats)}
-      >
-        📫 Abiertos
-      </button>
-      <br />
+      {user?.type_admin === 'Sub' && (
+      <>
+       <button
+       className={`btn mb-3 ${activeButtonEtiqueta === 'assigned' ? 'btn-primary' : 'btn-light'}`}
+       onClick={() => handleButtonClassEtiqueta('assigned', handleGetAssignedChats)}
+       >
+       📫 Abiertos
+       </button>
+       <br />
+       </>
+      )}
+
       <button
         className={`btn mb-3 ${activeButtonEtiqueta === 'finalized' ? 'btn-primary' : 'btn-light'}`}
         onClick={() => handleButtonClassEtiqueta('finalized', handleGetFinalizedChats)}
@@ -872,22 +877,25 @@ function Admin() {
       </button>
     </div>
   <div>
-      <p>Lista de asesores</p>
-      {user && user.type_admin === 'Full' && (
-        <div className="admin-names-list">
-          {adminList.map((admin, index) => (
-            <button
-              key={index}
-              className={`btn m-2 ${activeButtonAsesorIndex === index ? 'btn-primary' : 'btn-light'}`} // Cambia la clase según si es el botón activo
-              onClick={() => handleButtonClassAsesor(index, admin.name)} // Al hacer clic se cambia el botón activo
-            >
-              {admin.name}
-            </button>
-          ))}
-        </div>
-      )}
+  {user?.type_admin === 'Full' && (
+    <>
+    <p>Lista de asesores</p>
+    <div className="admin-names-list">
+      {adminList?.map((admin, index) => (
+        <button
+          key={index}
+          className={`btn m-2 ${activeButtonAsesorIndex === index ? 'btn-primary' : 'btn-light'}`} 
+          onClick={() => handleButtonClassAsesor(index, admin.name)}
+        >
+          {admin.name}
+        </button>
+      ))}
     </div>
-
+    </>
+  )}
+ </div>
+ </div>
+  <div className='admin-chat-list p-3'>
   {chats
   .filter(chat => !showUnassignedChats || chat.assigned_to === null)
   .filter(chat => (!showUnreadOnly || chat.unread_count > 0))
@@ -900,8 +908,7 @@ function Admin() {
       </div>
     </div>
   ))}
-</div>
-
+  </div>
         <div className="admin-chat-window p-3 flex-grow-1">
           {selectedChat ? (
             <>
